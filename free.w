@@ -914,7 +914,7 @@ real NewtonSolver::nextR(index iterate) {
   nextPhi[length-1])-energyDensity((length-2)*h, nextPhi[length-2]);
   dE = dE/energy();
   std::cout<<">>> dE = "<<dE<<std::endl;
-  while (fabs(dE) > 2.0/(1+iterate) || 0 < R - dE) {
+  while (fabs(dE) > 0.50/(1+iterate) || 0 < R - dE) {
     dE *= 0.5;
   }
   dE = dE/(1+iterate);
@@ -974,11 +974,13 @@ int main() {
   real R_ = log10(N_)/massChi_;
   real prevR = R_;
   real res_ = 0.0;
+  real eps = std::numeric_limits<real>::epsilon();
+  real cbrtEps = cbrt(eps);
   real prevEnergy = 0.0;
   real currentEnergy = 0.0;
   NewtonSolver *f;
   for(j=0; 20>j; j++) {
-    len = (index)(R_/1e-7); /* step size should be 1e-7 */
+    len = (index)(R_/cbrtEps); /* step size should be cuberoot of epsilon */
     if (len%2==1) len++; /* len should be even :) */
     f = new NewtonSolver(len, R_, alpha_, massChi_, N_);
     for(i=0; 10>i; i++) {
