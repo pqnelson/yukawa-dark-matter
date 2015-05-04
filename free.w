@@ -965,7 +965,7 @@ Just a note to myself, the initial guess for the radius I picked
 $\log_{10}(N)/m_{\chi}$ which appears to be as good as anything else.
 
 @ @c
-int main() {
+int main() { @#
   index i, j;
   index len;
   real N_ = 1e3;
@@ -973,7 +973,7 @@ int main() {
   real massChi_ = 100.0;
   real R_ = log10(N_)/massChi_;
   real prevR = R_;
-  real res_ = 0.0;
+  real res_ = 0.0; @#
   real eps = std::numeric_limits<real>::epsilon();
   real cbrtEps = cbrt(eps);
   real prevEnergy = 0.0;
