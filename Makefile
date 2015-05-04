@@ -1,8 +1,14 @@
+CPLUSPLUS=g++
+CFLAGS=-Wall -O3 --std=c++11
+LIB=-lm
+TEX=pdftex
+
+all: bin doc
 source:
 	ctangle free.w - free.cpp
-all: source
-	g++ -g -Wall -O3 --std=c++11 free.cpp -o free
+bin: source
+	$(CPLUSPLUS) $(CFLAGS) free.cpp $(LIB) -o free
 tex:
 	cweave free.w
 doc: tex
-	pdftex free.tex
+	$(TEX) free.tex
