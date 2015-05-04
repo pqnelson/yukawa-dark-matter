@@ -493,6 +493,10 @@ E\approx{h\over 3}\sum_{j=0}^{N/2}{\cal E}_{2j-2}+4{\cal E}_{2j-1}+{\cal E}_{2j}
 $$
 The error is $\bigO{h^{4}}$. We also cache the energy for speed.
 
+{\bf To Do:} Consider using adaptive quadrature for performance. There's
+no point in useless computation, might as well try to minimize it if at
+all possible.
+
 @ @c
 real NewtonSolver::energy() {
   if (energy_==0.0) {
