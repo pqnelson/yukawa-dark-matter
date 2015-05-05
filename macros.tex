@@ -1,0 +1,14 @@
+%%%
+% links
+%%%
+\def\rgboo#1{\pdfliteral{#1 rg #1 RG}}
+\def\rgbo#1#2{\rgboo{#1}#2\rgboo{0 0 0}}
+\def\rgb#1#2{\mark{#1}\rgbo{#1}{#2}\mark{0 0 0}}
+\def\arXiv#1{%
+	\noindent\pdfstartlink user
+		{/Subtype /Link
+		/Border [ 0 0 0 ]
+		/A << /S /URI /URI (http://arXiv.org/abs/#1) >>}{\rgb{1 0 0}{{\tt arXiv:#1}}}%
+	\pdfendlink}
+
+\def\bigO#1{{\cal O}\left(#1\right)}
