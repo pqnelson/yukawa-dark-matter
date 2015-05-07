@@ -19,10 +19,14 @@ headers. This is boring, skip to the next page.
 @d PI_4 M_PI_4
 
 @c
+#include <ctime>
+#include <cstdlib> /* for rand(), used in unit tests */
 #include <stdexcept>
 #include <exception>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <cstdlib>
 #include <cmath>
 #include "types.hpp"
@@ -279,8 +283,9 @@ to the total energy function.
   return 0.5*(z*hypot(1.0,z) - asinhl(z));
 }
 
-/* "h" is used for our step size, so the h auxiliary function */
-/* should be called something else */
+@ @c
+/* "h" is used for our step size, */
+/* so the h auxiliary function should be called something else */
 real hUtil(real z) {
   real u = z*z;
   return 0.25*(i(z) + z*u*hypot(1.0,z));
@@ -374,7 +379,7 @@ private: @/
 public: @/
   NewtonSolver(index length_, real R_, real alpha_, real massChi_, real N_, real massPhi_=0.0);
   ~NewtonSolver();
-  real pF(index j, real a=0.0); /* Fermi Momentum */
+  real pF(index j, real a=0.50); /* Fermi Momentum */
   real energyDensity(real r, real phi);
   real energy();
   real source(index j);
@@ -394,7 +399,7 @@ public: @/
   real norm();
   bool isDiagonalDominant();
   bool isSymmetric(); 
-  real nextR(index iterate=0);
+  void setR(real R_) { R = R_; }
   real currentR() const { return R; }
   unsigned iterateCount() const { return iterateCounter; }
   real* solution() const { return nextPhi; }
@@ -432,7 +437,7 @@ NewtonSolver::NewtonSolver(index length_, real R_, real alpha_, real massChi_, r
   index j;
   for (j=0; j<length; j++) {
     cPrime[j] = 0.0;
-    phi[j] = nextPhi[j] = -alpha*1.5*(N/R)*(3.0 - pow(j*h/R,2.0))*pow(massChi/pF(j*h,0.0),3.0)*i(pF(j*h,0.0)/massChi);
+    phi[j] = nextPhi[j] = -1.0; 
   }
 }
 
@@ -443,7 +448,7 @@ NewtonSolver::~NewtonSolver() {
 }
 
 @* Energy Density. 
-Recall (\S\S13--15) the energy for the system will be
+Recall (\S\S13--17) the energy for the system will be
 $$
 E(N,R) = E_{0}(N,R) + E_{{\rm int}}(N,R)\eqn{}
 $$
@@ -503,11 +508,10 @@ real NewtonSolver::energy() {
     real e = 0.0;
     index j;
     for(j = 1; j<length/2; j++) {
-      e += h*energyDensity(2*(j-1)*h, phi[2*j-2]);
-      e += 4*h*energyDensity((2*j-1)*h, phi[2*j-1]);
-      e += h*energyDensity(2*j*h, phi[2*j]);
+      e += 2*energyDensity(2*j*h, phi[2*j-2]);
+      e += 4*energyDensity((2*j-1)*h, phi[2*j-1]);
     }
-    energy_=e/3.0;
+    energy_=(energyDensity(0.0, phi[0]) + energyDensity((length-1)*h, phi[length-1])+e)*h/3.0;
   }
   return energy_;
 }
@@ -553,7 +557,7 @@ real NewtonSolver::Laplacian(index i, index j) {
 }
 
 @* Source Term.
-Recall (\S15) the field equations resemble Poisson's equations 
+Recall (\S17) the field equations resemble Poisson's equations 
 $\nabla^{2}\phi = \sigma$. We therefore have
 $$
 \sigma(r) = -{{\partial V(\phi)}\over {\partial\phi}}
@@ -636,6 +640,42 @@ need to be sure it has the right asymptotic behaviour, but it's as good
 as anything at the moment. (Luckily, we can put this problem on the back
 burner, and focus on solving our free field situation.)
 
+@ {\bf To Do.}
+We should seriously consider instead the approximations
+$$
+\phi'(0)\approx {{-3\phi_{0} + 4\phi_{1}-\phi_{2}}\over{2h}}
++\bigO{h^{2}}
+$$
+and
+$$
+\phi'(R)\approx {{\phi_{N-2}-4\phi_{N-1}+3\phi_{N}}\over{2h}}+\bigO{h^{2}}
+$$
+These would produce suitably different results. We would have to, again,
+modify the equations to make the resulting matrix tridiagonal\dots but
+this would produce far more satisfactory results. The only cost is we
+must assume $\phi(r)$ is sufficiently smooth. Observe the approximation
+is
+$$
+-3\phi(x)+4\phi(x-h)-\phi(x-2h)=-2h\phi'(x)-{2h^{3}\over3}\phi'''(x)+\bigO{h^{4}}
+$$
+which is fairly decent, as good as our Laplacian approximation.
+
+We would get for the boundary condition at the origin, after eliminating
+the $\phi_{2}$ by adding $(h/2)$ times the next row of the matrix,
+$$
+\phi'(0)=0\mapsto 3{{-\phi_{0}+\phi_{1}}\over{2h}} = {-h\over2}\sigma_{1}
+$$
+and for the surface boundary condition
+$$
+\left[
+{1\over{2h}}\left({N(N-1)\over{(N+1)(N-2)}}+3\right)
++\pmatrix{{\rm RHS\ of}\cr
+{\rm Boundary}\cr
+{\rm Condition}}
+\right]\phi_{N} - {1\over h}\left[{N-1\over{N-2}}-2\right]\phi_{N-1}
+= {-1\over 2}{{N-1}\over{N-2}}h\sigma_{N-1}.
+$$
+
 @
 The finite difference approximation of this result is
 $${{\phi_{N+1}-\phi_{N-1}}\over{2h}}=-\phi_{N}e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right).\eqn{}$$
@@ -716,7 +756,7 @@ real NewtonSolver::JacobianMatrix(index i, index j) {
   if (j == i-1) {
     return Laplacian(i,j);
   }
-  if (j == i) return Laplacian(i, j)-h*h*partialSource(i);
+  if (j == i) return Laplacian(i, j)-0*h*h*partialSource(i);
   return 0.0; /* somehow someone asked for a zero entry */
 }
 
@@ -726,29 +766,169 @@ $J_{2,1}=0$ quite unexpectedly. This caused problems with
 |CroutFactorization|, but enables us to write another algorithm that's
 $\bigO{N}$ to invert the Jacobian.
 
+@ Lets reflect about the system of equations. We have our system become
+$$ J^{T}J\phi^{(n+1)}=J^{T}J\phi^{(n)}-J^{T}F(\phi^{(n)}).\eqn{}$$
+The right hand side becomes
+$$
+{\rm RHS} = -M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
+-M^{T}\sigma
++\left({\partial\sigma\over{\partial\phi}}\right)\sigma
++\left({\partial\sigma\over{\partial\phi}}\right)^{2}\phi^{(n)}\eqn{}
+$$
+and the left hand side
+$$
+{\rm LHS}_{j} = \left[
+M^{T}M - \left({\partial\sigma\over{\partial\phi}}\right)^{T}M
+- M^{T}\left({\partial\sigma\over{\partial\phi}}\right) +
+\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)
+\right]\phi^{(n+1)}_{j}.\eqn{}
+$$
+We cheated a little since the source's Jacobian $\partial\sigma/\partial\phi$ 
+is a diagonal matrix.
+
+Observe further that, component-wise, $M^{T}M$ has:
+$$
+\pmatrix{
+b_{0} & a_{1} &       & \dots\cr
+c_{0} & b_{1} & a_{2} & \dots\cr
+      & c_{1} & b_{2} & \dots\cr
+      &       &       & \dots}
+\pmatrix{
+b_{0} & c_{0} &       & \dots\cr
+a_{1} & b_{1} & c_{1} & \dots\cr
+      & a_{2} & b_{2} & \dots\cr
+      &       &       & \dots}
+=
+\pmatrix{
+b_{0}^{2} + a_{1}^{2}   & b_{0}c_{0} + b_{1}a_{1}       &
+ & \dots\cr
+c_{0}b_{0}+b_{1}a_{1} & c_{0}^{2}+b_{1}^{2}+a_{2}^{2} & a_{2}b_{2}+b_{1}c_{1}
+  & \dots\cr
+                        &    c_{1}b_{1} + b_{2}a_{2}           &   &}
+$$
+Hence
+$$
+\tilde{a}_{j} = a_{j}b_{j}+c_{j-1}b_{j-1} = M_{j,j-1}M_{j,j} + M_{j-1,j}M_{j-1,j-1}\eqn{}
+$$
+$$
+\tilde{b}_{j} = a_{j+1}^{2}+b_{j}^{2}+c_{j-1}^{2}=M_{j+1,j}^{2}+M_{j,j}^{2}+M_{j-1,j}^{2}\eqn{}
+$$
+and
+$$
+\tilde{c}_{j} = b_{j}c_{j}+a_{j+1}b_{j+1}=M_{j,j}M_{j,j+1}+M_{j+1,j}M_{j+1,j+1}\eqn{}
+$$
+describe the tridiagonal components of $(M^{T}M)$.
+
+We also see
+$$
+\left({{\partial\sigma}\over{\partial\phi}}\right)^{T}M
+=
+\pmatrix{
+\partial\sigma_{0} &                &                & \cr
+               & \partial\sigma_{1} &                & \cr 
+               &                & \partial\sigma_{2} & \cr
+               &                &                &\ddots
+}
+\pmatrix{
+b_{0} & c_{0} &       & \dots\cr
+a_{1} & b_{1} & c_{1} & \dots\cr
+      & a_{2} & b_{2} & \dots\cr
+      &       &       & \ddots}
+= \pmatrix{
+b_{0}\partial\sigma_{0} & c_{0}\partial\sigma_{0} &       & \dots\cr
+a_{1}\partial\sigma_{1} & b_{1}\partial\sigma_{1} & c_{1}\partial\sigma_{1} & \dots\cr
+      & a_{2}\partial\sigma_{2} & b_{2}\partial\sigma_{2} & \dots\cr
+      &       &       & \ddots}
+$$
+and
+$$
+M^{T}\left({{\partial\sigma}\over{\partial\phi}}\right)
+=
+\pmatrix{
+b_{0} & a_{1} &       & \dots\cr
+c_{0} & b_{1} & a_{2} & \dots\cr
+      & c_{1} & b_{2} & \dots\cr
+      &       &       & \ddots}
+\pmatrix{
+\partial\sigma_{0} &                &                & \cr
+               & \partial\sigma_{1} &                & \cr 
+               &                & \partial\sigma_{2} & \cr
+               &                &                &\ddots
+}
+= \pmatrix{
+b_{0}\partial\sigma_{0} & a_{1}\partial\sigma_{1} &       & \dots\cr
+c_{0}\partial\sigma_{0} & b_{1}\partial\sigma_{1} & a_{2}\partial\sigma_{2} & \dots\cr
+      & c_{1}\partial\sigma_{1} & b_{2}\partial\sigma_{2} & \dots\cr
+      &       &       & \ddots}
+$$
+
 @ @c real NewtonSolver::a(index j) {
   if (j==0) return 0.0;
-  return (JacobianMatrix(j,j)*JacobianMatrix(j,j+1)+JacobianMatrix(j+1,j)*JacobianMatrix(j+1,j+1))/(h*h);
+  real u = h*h;
+  real MMtrans = (JacobianMatrix(j,j-1)*JacobianMatrix(j,j)+JacobianMatrix(j-1,j)*JacobianMatrix(j-1,j-1))/u;
+  real partialSourceM = JacobianMatrix(j,j-1)*(partialSource(j)*u); /* $a_{j}\partial\sigma_{j}$ */
+  partialSourceM += JacobianMatrix(j-1,j)*(partialSource(j-1)*u); /* $c_{j-1}\partial\sigma_{j-1}$ */
+  return MMtrans-partialSourceM;
 }
-real NewtonSolver::b(index j) {
+@ @c real NewtonSolver::b(index j) {
   if (j>length-1 || j<0) return 0.0;
-  real ret = pow(JacobianMatrix(j, j), 2.0);
-  if (j<length-1) ret += pow(JacobianMatrix(j+1,j), 2.0);
-  if (j>1) ret += pow(JacobianMatrix(j-1,j),2.0);
-  return ret/(h*h);
+  real MMtrans = pow(JacobianMatrix(j, j), 2.0);
+  if (j<length-1) MMtrans += pow(JacobianMatrix(j+1,j), 2.0);
+  if (j>0) MMtrans += pow(JacobianMatrix(j-1,j),2.0);
+  real partialSourceM = (partialSource(j)*h*h*2)*JacobianMatrix(j,j);
+  real sourceSquared = pow(partialSource(j)*h,2.0);
+  return (MMtrans/(h*h))-partialSourceM+sourceSquared;
 }
-real NewtonSolver::c(index j) {
+@ @c real NewtonSolver::c(index j) {
   if (j>=length-1) return 0.0;
-  return (JacobianMatrix(j,j)*JacobianMatrix(j,j+1)+JacobianMatrix(j+1,j)*JacobianMatrix(j+1,j+1))/(h*h);
+  real u = h*h;
+  real MMtrans = (JacobianMatrix(j,j+1)*JacobianMatrix(j,j)+JacobianMatrix(j+1,j+1)*JacobianMatrix(j+1,j))/u;
+  real partialSourceM = JacobianMatrix(j,j+1)*(partialSource(j)*u); /* $c_{j}\partial\sigma_{j}$ */
+  partialSourceM += JacobianMatrix(j+1,j)*(partialSource(j+1)*u); /* $a_{j+1}\partial\sigma_{j+1}$ */
+  return MMtrans-partialSourceM;
 }
-real NewtonSolver::d(index j) {
+@ @c real NewtonSolver::d(index j) {
+  int ctr;
   real ret = 0.0;
-  for(int k=-1; k<2 && j+k<length; k++) {
-   if (j+k>=0 && j+k<length)
-     ret += JacobianMatrix(j+k,j)*(source(j+k)-partialSource(j+k)*phi[j+k]);
+  index start;
+  if (j==0) start = 0;
+  else {     start = j; start--; }
+  for(ctr = start; ctr<length && ctr<j+1; ctr++) {
+    ret += -JacobianMatrix(ctr,j)*(h*h*source(ctr)+h*h*partialSource(ctr)*phi[ctr]);
   }
+  real p = partialSource(j);
+  ret += (h*h*p)*(source(j)+p*phi[j]);
   return ret;
 }
+
+@ {\bf Unit Test.}
+After all this, we should make certain that the matrix is symmetric with
+some unit tests.
+
+@ @c
+bool LHSisSymmetricTests() {
+  real alpha, massChi, R, N;
+  NewtonSolver *f;
+  alpha = 0.1; /* random numbers */
+  massChi = 10.0;
+  R = 0.4;
+  N = 1e2;
+  f = new NewtonSolver(10000, R, alpha, massChi, N);
+  if (!f->isSymmetric()) return false;
+  delete f;
+  srand (time(NULL));
+  for(int j=0; j<10; j++) {
+    massChi = rand();
+    alpha = rand();
+    N = rand();
+    R = rand();
+    f = new NewtonSolver(10000, R, alpha, massChi, N);
+    if (!f->isSymmetric()) return false;
+    delete f;
+  }
+  return true;
+}
+
 
 @* Thomas' Algorithm.
 When you have a tridiagonal matrix that's also diagonal dominant, you
@@ -877,16 +1057,29 @@ the energy. How do we do this? Well, we should keep performing Newton's
 method until the residual is ``good enough''. Then we perform {\it another}
 Newton's method to adjust $R$ via the ``steepest descent''.
 
+@ {\bf Residual.}
+The residual for an approximate solution $\vec{x}^{*}$ to the system
+$A\vec{x}=\vec{b}$ is precisely the vector
+$\vec{r}=A\vec{x}^{*}-\vec{b}$. Its norm is a measure of error.
+
 @ @c
 real NewtonSolver::residual() {
   if (iterateCounter == 0) throw std::out_of_range("Must iterate before computing residual");
   real r = 0.0;
+  real dr = 0.0;
   index j;
-  for (j=0; j<length; j++) {
-    r+=pow(phi[j]-nextPhi[j],2.0);
+  for (j=1; j<length-1; j++) {
+    dr=fabs((Laplacian(j,j-1)*phi[j-1]+Laplacian(j,j)*phi[j]+Laplacian(j,j+1)*phi[j+1])-h*h*source(j));
+    r += dr*dr;
   }
   return sqrt(r);
 }
+
+@ @<Residual at Origin@>=
+  r += pow((BoundaryConditionAtOrigin(0)*phi[0]+BoundaryConditionAtOrigin(1)*phi[1])-h*h*source(0),2.0);
+
+@ @<Residual at Surface@>=
+  r += pow((SurfaceBoundaryCondition(length-2)*phi[length-2]+SurfaceBoundaryCondition(length-1)*phi[length-1])-h*h*source(length-1),2.0);
 
 @ @c
 real NewtonSolver::norm() {
@@ -911,19 +1104,42 @@ minimize the energy for the system, then we should increase $R$. (``A
 little must be good, more must be better'' --- the motto of alcoholics
 and gradient descent.)
 
+
 @ @c
-real NewtonSolver::nextR(index iterate) {
-  real dE; /* derivative in energy with respect to R */
-  dE = energyDensity((length-1)*h,
-  nextPhi[length-1])-energyDensity((length-2)*h, nextPhi[length-2]);
-  dE = dE/energy();
-  std::cout<<">>> dE = "<<dE<<std::endl;
-  while (fabs(dE) > 0.50/(1+iterate) || 0 < R - dE) {
+void run(NewtonSolver *f, real tol) {
+  index i;
+  real res_;
+  f->ThomasInvert();
+  for(i=0; 10>i; i++) {
+    f->ThomasInvert();
+    res_ = f->residual();
+    std::cout<<"Residual: "<<res_<<std::endl;
+    if (i>0 && res_<tol) break;
+  }
+}
+
+@ @c
+real nextR(index len, real R_, real alpha_, real massChi_, real N_, real massPhi_ = 0.0) {
+  real E[2];
+  real dE;
+  NewtonSolver* f;
+  real cbrtEps = cbrt(std::numeric_limits<real>::epsilon());
+  real tol = cbrtEps*R_;
+  f = new NewtonSolver(len+1, R_+cbrtEps, alpha_, massChi_, N_, massPhi_);
+  run(f, tol);
+  E[1] = f->energy();
+  delete f;
+  f = new NewtonSolver(len-1, R_-cbrtEps, alpha_, massChi_, N_, massPhi_);
+  run(f, tol);
+  E[0] = f->energy();
+  dE = (E[1]-E[0])*0.5;
+  std::cout<<"dE = "<<dE<<std::endl;
+  while (fabs(dE)*5 >= R_) {
     dE *= 0.5;
   }
-  dE = dE/(1+iterate);
-  std::cout<<"dE = "<<dE<<std::endl;
-  return fabs(R - dE);
+  delete f;
+  std::cout<<">> dE* = "<<dE<<std::endl;
+  return R_-dE;
 }
 
 @ @c
@@ -968,42 +1184,139 @@ bool NewtonSolver::isSymmetric() {
 Just a note to myself, the initial guess for the radius I picked
 $\log_{10}(N)/m_{\chi}$ which appears to be as good as anything else.
 
+
+@ @c void dumpData(NewtonSolver *f) {
+  std::cout<<"\n>> R: "<<(f->currentR())<<std::endl;
+  std::cout<<"Residual: "<<(f->residual())<<std::endl;
+  std::cout<<"Norm:     "<<(f->norm())<<std::endl;
+  std::cout<<"Momentum: "<<(f->pF(f->currentR(), 0.0))<<std::endl;
+  std::cout<<"Energy: "<<(f->energy())<<std::endl;
+}
+
 @ @c
-int main() { @#
-  index i, j;
+void minimizeR() { @#
+  index j;
   index len;
   real N_ = 1e3;
   real alpha_ = 0.1;
   real massChi_ = 100.0;
-  real R_ = log10(N_)/massChi_;
-  real prevR = R_;
-  real res_ = 0.0; @#
+  real R_ = 10*log10(N_)/massChi_;
+  R_ = 0.62;
   real eps = std::numeric_limits<real>::epsilon();
   real cbrtEps = cbrt(eps);
-  real prevEnergy = 0.0;
-  real currentEnergy = 0.0;
+  real tol;
   NewtonSolver *f;
-  for(j=0; 20>j; j++) {
+  std::cout<<"Cube root of epsilon: "<<cbrtEps<<std::endl;
+  std::cout<<"Epsilon: "<<eps<<std::endl;
+  for(j=0; 80>j; j++) {
+    tol = cbrtEps*R_;
     len = (index)(R_/cbrtEps); /* step size should be cuberoot of epsilon */
     if (len%2==1) len++; /* len should be even :) */
     f = new NewtonSolver(len, R_, alpha_, massChi_, N_);
-    for(i=0; 10>i; i++) {
-      f->ThomasInvert();
-      res_ = f->residual();
-      std::cout<<">> Residual: "<<res_<<std::endl;
-      if (i>0 && res_<1e-8) break;
-    }
-    std::cout<<"\n>> R: "<<R_<<std::endl;
-    std::cout<<"Residual: "<<(f->residual())<<std::endl;
-    std::cout<<"Norm:     "<<(f->norm())<<std::endl;
-    R_ = f->nextR(j);
-    currentEnergy = f->energy();
-    std::cout<<"Momentum: "<<(f->pF(R_, 0.0))<<std::endl;
-    std::cout<<"Energy: "<<currentEnergy<<std::endl;
+    run(f, tol);
+    dumpData(f);
+    delete f;
+    R_ = nextR(len, R_, alpha_, massChi_, N_);
     std::cout<<"Next R: "<<R_<<std::endl;
-    if (j==0) prevEnergy=currentEnergy;
+  }
+}
+
+@ @c void dumpEnergyPoints() {
+  NewtonSolver *f;
+  std::ofstream myfile;
+  myfile.open("data.csv");
+  real eps = std::numeric_limits<real>::epsilon();
+  real cbrtEps = cbrt(std::numeric_limits<double>::epsilon());
+  real sqrtEps = sqrt(eps);
+  index len;
+  real R_;
+  real alpha_=0.1;
+  real massChi_=100.0;
+  real N_=1e3;
+  real step = 0.02;
+  index maxIter = (index)(2.0/step);
+  for(index i=1; i<maxIter; i++) {
+    /* sample 5 points around the location */
+    for(int j=-5; j<5; j++) {
+      R_ = i*step+j*sqrtEps;
+      len = ((index)(R_/cbrtEps))+j*j;
+      if (len%2==1) len++;
+      std::cout<<"Number of data points: "<<len<<std::endl;
+      f = new NewtonSolver(len, R_, alpha_, massChi_, N_);
+      run(f, cbrtEps*R_);
+      myfile<<std::setprecision(21)<<R_<<","<<(f->energy())<<std::endl;
+      delete f;
+    }
+  }
+}
+
+
+@ @c void minimizeEnergyPoints() {
+  NewtonSolver *f;
+  real eps = std::numeric_limits<real>::epsilon();
+  real cbrtEps = cbrt(std::numeric_limits<double>::epsilon());
+  real sqrtEps = sqrt(eps);
+  index len;
+  real R_, r, dE;
+  real rMin = -1.0;
+  real rMax = 0.0;
+  real eMin = 0.0;
+  real eMax = 0.0;
+  real alpha_=0.1;
+  real massChi_=100.0;
+  real N_=1e3;
+  real step = 0.02;
+  index maxIter = 20;
+  R_ = 0.1;
+  for(index i=0; i<maxIter; i++) {
+    len = (index)(R_/cbrtEps);
+    f = new NewtonSolver(len, R_, alpha_, massChi_, N_);
+    run(f, cbrtEps*R_);
+    std::cout<<"R: "<<R_<<std::endl;
+    std::cout<<"energy: "<<(f->energy())<<std::endl;
+    if (i==0 || (f->energy())<eMax) {
+      eMax = f->energy();
+      rMax = R_;
+    } else {
+      
+      rMin = R_;
+      eMin = f->energy();
+    }
+    if (rMin > 0.0) {
+      R_ = 0.5*(rMin + rMax);
+    } else {
+      R_ += 1.0;
+    }
     delete f;
   }
+}
+
+@ We use the 5-point stencil to approximate the change in energy. This
+is a good $\bigO{h^5}$ approximation to the derivative.
+
+@ @<Change in Energy@>=
+  delete f;
+  f = new NewtonSolver(len+2, R_+2*cbrtEps, alpha_, massChi_, N_);
+  run(f, cbrtEps*R_);
+  dE = -(f->energy());
+  delete f;
+  f = new NewtonSolver(len+2, R_+cbrtEps, alpha_, massChi_, N_);
+  run(f, cbrtEps*R_);
+  dE += 8*(f->energy());
+  delete f;
+  f = new NewtonSolver(len+2, R_-cbrtEps, alpha_, massChi_, N_);
+  run(f, cbrtEps*R_);
+  dE += -8*(f->energy());
+  delete f;
+  f = new NewtonSolver(len+2, R_-2*cbrtEps, alpha_, massChi_, N_);
+  run(f, cbrtEps*R_);
+  dE += (f->energy());
+  delete f;
+  dE = dE/(12*sqrtEps);
+  std::cout<<">>> dE = "<<dE<<std::endl;
+
+@ @c int main() {
+  minimizeEnergyPoints();
   return 0;
 }
 
