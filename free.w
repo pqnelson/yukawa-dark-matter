@@ -1,13 +1,5 @@
-\def\arcsinh{\mathop{\rm ArcSinh}\nolimits}
-\def\title{\uppercase{Dark Matter with Free Yukawa Scalar Field}}
-\def\abs#1{|#1|}
-\newcount\eqcount
-\eqcount=0
-\def\vec#1{{\bf #1}}
-\def\slug{\hbox{\kern1.5pt\vrule width2.5pt height6pt depth1.5pt\kern1.5pt}}
-\def\slugonright{\vrule width0pt\nobreak\hfill\slug}
+\def\title{\uppercase{Yukawa Dark Matter}}
 
-\def\eqn{{\global\advance\eqcount by1}\eqno{(\the\eqcount)}}
 \input macros
 
 @* Include Files.
@@ -17,7 +9,9 @@ headers. This is boring, skip to the next page.
 @d _USE_MATH_DEFINES true
 @d PI M_PI
 @d PI_4 M_PI_4
-
+@d MAX(a,b) (a>b?a:b)
+@d SQ(x) (x*x)
+@d CUBE(x) (x*x*x)
 @c
 #include <ctime>
 #include <cstdlib> /* for rand(), used in unit tests */
@@ -29,6 +23,7 @@ headers. This is boring, skip to the next page.
 #include <iomanip>
 #include <cstdlib>
 #include <cmath>
+#include <string>
 #include "types.hpp"
 #include "newton.hpp"
 
@@ -283,6 +278,10 @@ to the total energy function.
   return 0.5*(z*hypot(1.0,z) - asinhl(z));
 }
 
+@ @c real iDeriv(real z) {
+  return z*z/hypot(1.0,z);
+}
+
 @ @c
 /* "h" is used for our step size, */
 /* so the h auxiliary function should be called something else */
@@ -328,6 +327,52 @@ real NewtonSolver::pF(index j, real a) {
   if (r >= R) return 0.0; /* avoid complex numbers! */
   return cbrt(4.5*N*PI_4*(1.0+a)*(2.0+3.0*a)*(1.0+3.0*a))*pow(1.0-(r/R),a)/R;
 }
+
+@ {\bf First-Order Equations of Motion.}
+We claim that we may reduce the equations of motion to a first-order
+differential equation:
+$$
+\phi'(r) = {1\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
+{g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
+-{{\partial V}\over{\partial\phi}}
+\right]{\rm d}r'.
+$$
+We can see this from
+$$
+{{\rm d}\over{{\rm d}r}}[r^{2}\phi'(r)] = 
+{g_{\chi}\over \pi^{2}}r^{2}m(r)^{3}i\left({{p_{F}(r)}\over\abs{m(r)}}\right)
+-r^{2}{{\partial V}\over{\partial\phi}}
+$$
+which is precisely the equations of motion multipled by $r^{2}$. This
+first-order ODE remains quite nonlinear.
+
+Let $V(m)=V(m_{\chi}+g_{\chi}\phi)$. Then we may rewrite this as a
+first-order differential equation in the scaling mass
+$$
+{{\rm d}\over{{\rm d}r}}m(r) = 
+{g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
+{g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
+-g_{\chi}{{\partial V}\over{\partial m(r)}}
+\right]{\rm d}r'.
+$$
+
+
+@ {\bf Constraint: Positivity of Mass.}
+We may implement a constraint condition, since
+$$
+m'(r) = g_{\chi}\phi'(r)
+$$
+we see
+$$
+m'(r)
+=
+{g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
+{g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
+-{{\partial V}\over{\partial\phi}}
+\right]{\rm d}r'.
+$$
+For the free situation $V=0$, we have $m'(r)>0$ and hence does not
+change sign.
 
 
 @* Summary of Algorithms, Big Picture.
@@ -388,21 +433,30 @@ public: @/
   real BoundaryConditionAtOrigin(index i);
   real SurfaceBoundaryCondition(index j);
   real JacobianMatrix(index i, index j);
+  real JacobianTransposeJacobian(index i, index j);
   void init();
   real a(index i);
   real b(index i);
   real c(index i);
   real d(index i);
+  real aTilde(index i);
+  real bTilde(index i);
+  real cTilde(index i);
+  real dTilde(index i);
+  real F(index j);
   void CroutFactorization();
   void ThomasInvert(); /* Thomas' Algorithm */
-  real residual();
+  real residual(bool swapIter=false);
   real norm();
   bool isDiagonalDominant();
   bool isSymmetric(); 
+  real relativeError();
   void setR(real R_) { R = R_; }
   real currentR() const { return R; }
   unsigned iterateCount() const { return iterateCounter; }
   real* solution() const { return nextPhi; }
+  real get(index j) const { return phi[j]; }
+  void swapPhi() { std::swap(phi, nextPhi); }
 };@;
 #endif
 
@@ -435,9 +489,14 @@ NewtonSolver::NewtonSolver(index length_, real R_, real alpha_, real massChi_, r
   energy_(0.0),@#
   iterateCounter(0) @# {
   index j;
+  real r;
   for (j=0; j<length; j++) {
+    r = (j+1)*h;
     cPrime[j] = 0.0;
-    phi[j] = nextPhi[j] = -1.0; 
+    nextPhi[j] = phi[j] = -alpha*1.5*(N/R)*(3-pow(r/R,2.0))*pow(massChi/pF(r),3.0)*i(pF(r)/massChi);
+    if (partialSource(j)==0.0) {
+      std::cout<<"partialSource("<<j<<") is zero"<<std::endl;
+    }
   }
 }
 
@@ -549,10 +608,14 @@ real NewtonSolver::Laplacian(index i, index j) {
   if (i == j)
     return -2.0;
   real r = i*h;
-  if (i+1 == j)
+  if (i+1 == j) {
+    if (i==0) return 3.0;
     return 1.0 + (h/r);
-  else if (i-1 == j)
+  }
+  else if (i-1 == j) {
+    if (i==0) return -3.0;
     return 1.0 - (h/r);
+  }
   return 0.0;
 }
 
@@ -575,7 +638,7 @@ real NewtonSolver::source(index j) {
   real scalingMass = massChi + g*phi[j];
   real p = pF(j);
   if (scalingMass == 0.0) throw std::logic_error("Divide by Zero");
-  return -massPhi*massPhi*phi[j]+g*PI*pow(scalingMass/PI, 3.0)*i(p/fabs(scalingMass));
+  return -massPhi*massPhi*phi[j]+(g/(PI*PI))*pow(scalingMass, 3.0)*i(p/fabs(scalingMass));
 }
 
 @ Observe the partial derivative of $\sigma$ with respect to the field
@@ -589,58 +652,61 @@ $$
 $$
 We can implement this precisely. Recall $\alpha=g_{\chi}^{2}/(4\pi)$.
 
+@ {\bf Lemma.} {\it We see the derivative of $i'(p/m)$ term gives us}
+$$
+m(r)^{3}{{\partial i(p_{F}(r)/\abs{m(r)})}\over{\partial\phi(r)}}
+= -g_{\chi}\left[{{p_{F}(r)}\over{\sqrt{m(r)^{2} + p_{F}(r)^{2}}}}
+\right]p_{F}(r)\abs{m(r)}.
+$$
+\medbreak
+
+\noindent{\it Proof.} We see
+$$
+i'(z) = {z^{2}\over{\sqrt{1+z^{2}}}}
+$$
+by definition of $i(z)$. Then we have
+$$
+{{\partial i(p_{F}(r)/\abs{m(r)})}\over{\partial\phi(r)}}
+= i'(p_{F}(r)/\abs{m(r)}){{-p_{F}(r)}\over{m(r)^{2}}}{{\partial m(r)}\over{\partial\phi(r)}}.
+$$
+We claim
+$$
+{{\partial m(r)}\over{\partial\phi(r)}}=g_{\chi}.
+$$
+Then we get
+$$
+{{\partial i(p_{F}(r)/\abs{m(r)})}\over{\partial\phi(r)}}
+= g_{\chi}\left[{{p_{F}(r)/\abs{m(r)}}\over{\sqrt{1 + \left({p_{F}(r)\over\abs{m(r)}}\right)^{2}}}}
+\right]{{-p_{F}(r)}\over{m(r)^{2}}}.
+$$
+Rearranging terms gives
+$$
+{{\partial i(p_{F}(r)/\abs{m(r)})}\over{\partial\phi(r)}}
+= g_{\chi}\left[{{p_{F}(r)}\over{\sqrt{m(r)^{2} + p_{F}(r)^{2}}}}
+\right]{{-p_{F}(r)}\over{m(r)^{2}}}.
+$$
+Hence we find the desired result.\quad\slug
+
+
 @ @c real NewtonSolver::partialSource(index j) {
   real scalingMass = massChi + sqrt(4.0*PI*alpha)*phi[j];
   if (scalingMass == 0.0) throw std::logic_error("Divide by Zero");
   real fermiMomentum = pF(j);
   real p = fermiMomentum/fabs(scalingMass);
-  real partialI = fermiMomentum*fermiMomentum*scalingMass/hypot(scalingMass,fermiMomentum);
+  
+  real partialI = pow(fermiMomentum,2.0)*fabs(scalingMass)/hypot(scalingMass,fermiMomentum);
+  if (isnan(phi[j])) {
+    std::cout<<"phi["<<j<<"] = "<<phi[j]<<std::endl;
+    throw std::invalid_argument("phi[j] is a NaN");
+  }
+  if (isnan(massChi)) throw std::invalid_argument("massChi is a NaN");
+  if (isnan(scalingMass)) throw std::invalid_argument("scalingMass is a NaN");
+  if (isnan(p)) throw std::invalid_argument("p is a NaN");
+  if (isnan(partialI)) throw std::invalid_argument("partialI is a NaN");
   return -pow(massPhi, 2.0) + (alpha/PI_4)*(3.0*pow(scalingMass, 2.0)*i(p) - partialI);
 }
 
 @* Boundary Conditions.
-The boundary conditions for the field are $\phi'(0)=0$ and, well, quite
-complicated on the surface $r=R$. Lets focus first on the boundary
-condition at the origin.
-
-@ {\bf Origin Boundary Conditions.}
-We see the boundary condition at the origin has the finite difference
-approximation
-$${1\over{2h}}(\phi_{1}-\phi_{-1})=0.\eqn{}$$
-But what is $\phi_{-1}$? It's a ``ghost point'', which we can determine
-via the field equation as
-$$\phi_{1}-2\phi_{0}+\phi_{-1}=h^{2}\sigma_{0}\eqn{}$$
-hence
-$$\phi_{-1}=2\phi_{0}-\phi_{-1}+h^{2}\sigma_{0}.\eqn{}$$
-This gives us the boundary condition
-$${2\over h^{2}}\phi_{0}-{2\over h^{2}}\phi_{1}=\sigma_{0}.\eqn{}$$
-We can implement this quite readily.
-
-@ @c
-real NewtonSolver::BoundaryConditionAtOrigin(index i) {
-  if (i==0)      return 2.0;
-  else if (i==1) return -2.0;
-  else           return 0.0;
-}
-
-@ {\bf Surface Boundary Term.}
-The boundary condition at the surface can likewise be solved. We
-pretend outside the nugget, the scalar field acts like a Yukawa
-potential. So that gives us
-$$
-\phi(r) = \phi(R){R\over r}e^{-m_{\phi}r}.\eqn{}
-$$
-Differentiation, then evaluating the result at $r=R$, gives us
-$$\phi'(R) = -\phi(R)e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right).\eqn{}$$
-
-@ {\bf Remark.}
-This needs to be modified when we have a self-interacting term. Perhaps
-one way out is to consider $\phi(\infty)=0$ as the boundary term? We
-need to be sure it has the right asymptotic behaviour, but it's as good
-as anything at the moment. (Luckily, we can put this problem on the back
-burner, and focus on solving our free field situation.)
-
-@ {\bf To Do.}
 We should seriously consider instead the approximations
 $$
 \phi'(0)\approx {{-3\phi_{0} + 4\phi_{1}-\phi_{2}}\over{2h}}
@@ -653,19 +719,56 @@ $$
 These would produce suitably different results. We would have to, again,
 modify the equations to make the resulting matrix tridiagonal\dots but
 this would produce far more satisfactory results. The only cost is we
-must assume $\phi(r)$ is sufficiently smooth. Observe the approximation
-is
+must assume $\phi(r)$ is sufficiently smooth. 
+
+@ {\bf Proposition.} {\it We have the following approximation hold}
 $$
 -3\phi(x)+4\phi(x-h)-\phi(x-2h)=-2h\phi'(x)-{2h^{3}\over3}\phi'''(x)+\bigO{h^{4}}
 $$
-which is fairly decent, as good as our Laplacian approximation.
+
+\medbreak
+\noindent{\it Proof.} We simply use the Taylor series expansion
+$$
+\phi(x-2h)=\phi(x)-2h\cdot\phi'(x)+{4h^{2}\over{2!}}\phi''(x)-{8h^{3}\over{3!}}\phi'''(x)+\bigO{h^{4}}
+$$
+$$
+\phi(x-h)=\phi(x)-h\cdot\phi'(x)+{h^{2}\over{2!}}\phi''(x)-{h^{3}\over{3!}}\phi'''(x)+\bigO{h^{4}}
+$$
+hence the relation holds immediately.\quad\slug
+
+@ {\bf Origin Boundary Conditions.}
+We may find the boundary conditions at the origin as
+$$
+\phi'(0)=0\mapsto{{3\phi_{0}-4\phi_{1}+\phi_{2}}\over{2h}}=0.
+$$
+However, for numerical purposes, we strongly desire this equation to
+involve only $\phi_{0}$ and $\phi_{1}$. (This way, we'd get a
+tridiagonal matrix, and we could invoke a host of nice numerical methods
+that are optimized for tridiagonal matrices.)
 
 We would get for the boundary condition at the origin, after eliminating
 the $\phi_{2}$ by adding $(h/2)$ times the next row of the matrix,
 $$
-\phi'(0)=0\mapsto 3{{-\phi_{0}+\phi_{1}}\over{2h}} = {-h\over2}\sigma_{1}
+\phi'(0)=0\mapsto 3{{-\phi_{0}+\phi_{1}}\over{2h}} = {-h\over2}\sigma_{1}.\eqn{}
 $$
-and for the surface boundary condition
+This presents the solution to the unstable boundary condition we
+couldn't tackle with ghost points. For simplicity, we multiply through
+by $-h/2$:
+$$
+{3\over {h^{2}}}\phi_{0}-{3\over{h^{2}}}\phi_{1}=\sigma_{1}\eqn{}
+$$
+which nicely speeds things up. Again, delaying dividing by $h^{2}$ until
+the last possible moment gives us:
+
+@ @c
+real NewtonSolver::BoundaryConditionAtOrigin(index i) {
+  if (i==0) return 3.0;
+  if (i==1) return -3.0;
+  return 0.0;
+}
+
+@ {\bf Surface Boundary Condition.}
+For the surface boundary condition
 $$
 \left[
 {1\over{2h}}\left({N(N-1)\over{(N+1)(N-2)}}+3\right)
@@ -675,129 +778,106 @@ $$
 \right]\phi_{N} - {1\over h}\left[{N-1\over{N-2}}-2\right]\phi_{N-1}
 = {-1\over 2}{{N-1}\over{N-2}}h\sigma_{N-1}.
 $$
-
-@
-The finite difference approximation of this result is
-$${{\phi_{N+1}-\phi_{N-1}}\over{2h}}=-\phi_{N}e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right).\eqn{}$$
-Again, we must determine the ghost point $\phi_{N+1}$ in terms of prior
-values through the field equation.
-
-The field equations give us
-$$\phi_{N+1} = {N\over {N+1}}h^{2}
-\left[
-  {2\over h^{2}}+{2\over R}e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right)
-\right]
-  \phi_{N}
--\left({{N-1}\over{N+1}}\right)\phi_{N-1}
-+\left({N\over{N+1}}h^{2}\right)\sigma_{N}\eqn{}
+We can rewrite this as
 $$
-or simplifying a bit
-$$\phi_{N+1} = {N\over {N+1}}h^{2}
-\left[{2N\over {N+1}}
-  + {{2N/R} \over {N+1}}e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right)
-\right]
-  \phi_{N}
--\left({{N-1}\over{N+1}}\right)\phi_{N-1}
-+\left({N\over{N+1}}h^{2}\right)\sigma_{N}.\eqn{}
-$$
-Hence we get
-$$
-{1\over h}\left({N\over{N+1}}\right)\phi_{N-1}
--\left[
-  {{N/h}\over{N+1}}
-+\left(1 + {{N/R}\over{(N+1)h}}\right)\left({1\over R}+m_{\phi}\right)e^{-m_{\phi}R}
+{-1\over{h^{2}}}\left[
+\left({N\over{N+1}}\right)
++3\left({{N-3}\over{N-1}}\right)
++2h\left({{N-2}\over{N-1}}\right)({\rm RHS})
 \right]\phi_{N}
-=
-{{hN/2}\over{N+1}}\sigma_{N}\eqn{}
+-{2\over{h^{2}}}\left[{{N-3}\over{N-1}}\right]\phi_{N-1}
+=\sigma_{N-1}
 $$
-We want to have the right hand side be $\sigma_{N}$, so rearranging
-terms gives us
+where
 $$
-{2\over h^{2}}\phi_{N-1}
--\left[
-  {2\over h^{2}}
-+{{2Rh(N+1)+2N}\over{h^{2}R}}\left({1\over R}+m_{\phi}\right)e^{-m_{\phi}R}
-\right]\phi_{N}
-=
-\sigma_{N}.\eqn{}
+{\rm RHS} = -R\phi_{N}e^{-m_{\phi}R}\left[m_{\phi}+{1\over{R^{2}}}\right].
 $$
-Numerically, though, we delay dividing by $h^{2}$ until the ``last
-possible moment''.
+For the time being, we will simply use the ghost point on the surface
+boundary condition.
 
 @ @c
 real NewtonSolver::SurfaceBoundaryCondition(index j) {
-  if (j<length-2) return 0.0;
-  if (j==length-2) return 2.0;
-  if (j==length-1) {
-    return -2.0-((h*R*length-1+length)/(0.5*R))*(massPhi + 1.0/R)*exp(-massPhi*R);
+  index N_ = length-1;
+  if (j==N_-1) {
+    return -2.0*(((N_-3)*1.0)/((N_-1)*1.0));
   }
-  else return 0.0;
+  else if (j==N_) {
+    real RHS = R*phi[N_]*exp(-massPhi*R)*(massPhi + pow(R,-2.0));
+    real ret = ((N_*1.0)/((N_+1)*1.0));
+    ret += 3.0*(((N_+3)*1.0)/((N_-1)*1.0));
+    ret += 2*h*(((N_-2)*1.0)/((N_-1)*1.0))*RHS;
+    return ret;
+  }
+  return 0.0;
 }
+
+@ {\bf On Ghost Boundary Conditions.}
+There is one situation of note I should mention. The naive finite
+difference one might attempt to use (the central divided difference)
+would involve points like $\phi_{-1}$ or $\phi_{N+1}$, which we don't
+keep track of. One way out is to use the equations of motion to
+eliminate these points. Sometimes this works. But not for the
+spherically symmetric Laplacian---at least, not for the $\phi'(0)$
+condition.
+
+Why? Well, the spherically symmetric Laplacian has a
+$r^{-1}\partial_{r}$ term. We would need
+$$
+\lim_{\varepsilon\to0}{{\phi(\varepsilon)-\phi(0)}\over{\varepsilon^{2}}}=0
+$$
+or more precisely
+$\phi(\varepsilon)\approx\phi(0)+\bigO{\varepsilon^{3}}$. We cannot make
+this assumption, it'd make the entire system ``gravitate'' towards the
+$\phi(r)=0$ solution.
 
 @* Jacobian Matrix.
 The Jacobian $J(\phi)_{ij} = M_{ij} - (\partial\sigma/\partial\phi)_{ij}(\phi)$ 
-is diagonal dominant. We have three helper functions, which describe the
-tridiagonal components of the ``symmetrized Jacobian'' $(J^{T}J)$:
-$$ a_{i} = (J^{T}J)_{i,i-1}\eqn{}$$
-$$ b_{i} = (J^{T}J)_{i,i} \eqn{}$$
-$$ c_{i} = (J^{T}J)_{i,i+1} \eqn{}$$
-We also have the modified right hand side of Newton's equations, since
-we have to multiply by $J^{T}(\phi^{(n)})$.
+is diagonal dominant. Mostly. We see for $2\leq i\leq N$, the matrix is
+diagonal dominant, for $i=1$ it's weakly diagonal dominant, and for the
+boundary condition at the origin\dots again weakly diagonal dominant.
+
+It'd be nicer if the Jacobian were {\it strictly} diagonal dominant, or
+symmetric and positive-definite. The latter condition may be established
+if we consider instead $J^{T}J$\dots which is harder. For now, we
+consider the vanilla Jacobian matrix.
 
 @ @c
 real NewtonSolver::JacobianMatrix(index i, index j) {
   if (i>=length || j>=length) throw std::out_of_range("Index out of bound");
-  if (i==0) return BoundaryConditionAtOrigin(j);
-  if (i==length-1) return SurfaceBoundaryCondition(j);
-  
+  if (i==0) {
+    real ret = BoundaryConditionAtOrigin(j)/h;
+    if (j==1) ret+=h*partialSource(1);
+    return ret;
+  }
+  if (i==length-1) {
+    real ret = SurfaceBoundaryCondition(j)/h;
+    if (j==length-2) ret+=h*partialSource(j);
+    return ret;
+  }
+
   if (j == i+1) {
-    return Laplacian(i, j);
+    return Laplacian(i, j)/h;
   }
   if (j == i-1) {
-    return Laplacian(i,j);
+    return Laplacian(i,j)/h;
   }
-  if (j == i) return Laplacian(i, j)-0*h*h*partialSource(i);
+  if (j == i) return Laplacian(i, j)/h-h*partialSource(i);
   return 0.0; /* somehow someone asked for a zero entry */
 }
 
-@ We have some helper functions to access the off-diagonal and diagonal
-components explicitly. While constructing this, we noted that
-$J_{2,1}=0$ quite unexpectedly. This caused problems with
-|CroutFactorization|, but enables us to write another algorithm that's
-$\bigO{N}$ to invert the Jacobian.
-
-@ Lets reflect about the system of equations. We have our system become
-$$ J^{T}J\phi^{(n+1)}=J^{T}J\phi^{(n)}-J^{T}F(\phi^{(n)}).\eqn{}$$
-The right hand side becomes
-$$
-{\rm RHS} = -M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
--M^{T}\sigma
-+\left({\partial\sigma\over{\partial\phi}}\right)\sigma
-+\left({\partial\sigma\over{\partial\phi}}\right)^{2}\phi^{(n)}\eqn{}
-$$
-and the left hand side
-$$
-{\rm LHS}_{j} = \left[
-M^{T}M - \left({\partial\sigma\over{\partial\phi}}\right)^{T}M
-- M^{T}\left({\partial\sigma\over{\partial\phi}}\right) +
-\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)
-\right]\phi^{(n+1)}_{j}.\eqn{}
-$$
-We cheated a little since the source's Jacobian $\partial\sigma/\partial\phi$ 
-is a diagonal matrix.
-
-Observe further that, component-wise, $M^{T}M$ has:
+@ We also include the matrix multiplied $J^{T}J$. This is quick, since
+the Jacobian is tridiagonal. Observe further that, component-wise, $J^{T}J$ has:
 $$
 \pmatrix{
 b_{0} & a_{1} &       & \dots\cr
 c_{0} & b_{1} & a_{2} & \dots\cr
       & c_{1} & b_{2} & \dots\cr
-      &       &       & \dots}
+      &       &       & \ddots}
 \pmatrix{
 b_{0} & c_{0} &       & \dots\cr
 a_{1} & b_{1} & c_{1} & \dots\cr
       & a_{2} & b_{2} & \dots\cr
-      &       &       & \dots}
+      &       &       & \ddots}
 =
 \pmatrix{
 b_{0}^{2} + a_{1}^{2}   & b_{0}c_{0} + b_{1}a_{1}       &
@@ -806,98 +886,198 @@ c_{0}b_{0}+b_{1}a_{1} & c_{0}^{2}+b_{1}^{2}+a_{2}^{2} & a_{2}b_{2}+b_{1}c_{1}
   & \dots\cr
                         &    c_{1}b_{1} + b_{2}a_{2}           &   &}
 $$
+Hence we conclude the components of the resulting matrix are
 Hence
 $$
-\tilde{a}_{j} = a_{j}b_{j}+c_{j-1}b_{j-1} = M_{j,j-1}M_{j,j} + M_{j-1,j}M_{j-1,j-1}\eqn{}
+\tilde{a}_{j} = a_{j}b_{j}+c_{j-1}b_{j-1} = J_{j,j-1}J_{j,j} + J_{j-1,j}J_{j-1,j-1}\eqn{}
 $$
 $$
-\tilde{b}_{j} = a_{j+1}^{2}+b_{j}^{2}+c_{j-1}^{2}=M_{j+1,j}^{2}+M_{j,j}^{2}+M_{j-1,j}^{2}\eqn{}
-$$
-and
-$$
-\tilde{c}_{j} = b_{j}c_{j}+a_{j+1}b_{j+1}=M_{j,j}M_{j,j+1}+M_{j+1,j}M_{j+1,j+1}\eqn{}
-$$
-describe the tridiagonal components of $(M^{T}M)$.
-
-We also see
-$$
-\left({{\partial\sigma}\over{\partial\phi}}\right)^{T}M
-=
-\pmatrix{
-\partial\sigma_{0} &                &                & \cr
-               & \partial\sigma_{1} &                & \cr 
-               &                & \partial\sigma_{2} & \cr
-               &                &                &\ddots
-}
-\pmatrix{
-b_{0} & c_{0} &       & \dots\cr
-a_{1} & b_{1} & c_{1} & \dots\cr
-      & a_{2} & b_{2} & \dots\cr
-      &       &       & \ddots}
-= \pmatrix{
-b_{0}\partial\sigma_{0} & c_{0}\partial\sigma_{0} &       & \dots\cr
-a_{1}\partial\sigma_{1} & b_{1}\partial\sigma_{1} & c_{1}\partial\sigma_{1} & \dots\cr
-      & a_{2}\partial\sigma_{2} & b_{2}\partial\sigma_{2} & \dots\cr
-      &       &       & \ddots}
+\tilde{b}_{j} = a_{j+1}^{2}+b_{j}^{2}+c_{j-1}^{2}=J_{j+1,j}^{2}+J_{j,j}^{2}+J_{j-1,j}^{2}\eqn{}
 $$
 and
 $$
-M^{T}\left({{\partial\sigma}\over{\partial\phi}}\right)
-=
-\pmatrix{
-b_{0} & a_{1} &       & \dots\cr
-c_{0} & b_{1} & a_{2} & \dots\cr
-      & c_{1} & b_{2} & \dots\cr
-      &       &       & \ddots}
-\pmatrix{
-\partial\sigma_{0} &                &                & \cr
-               & \partial\sigma_{1} &                & \cr 
-               &                & \partial\sigma_{2} & \cr
-               &                &                &\ddots
-}
-= \pmatrix{
-b_{0}\partial\sigma_{0} & a_{1}\partial\sigma_{1} &       & \dots\cr
-c_{0}\partial\sigma_{0} & b_{1}\partial\sigma_{1} & a_{2}\partial\sigma_{2} & \dots\cr
-      & c_{1}\partial\sigma_{1} & b_{2}\partial\sigma_{2} & \dots\cr
-      &       &       & \ddots}
+\tilde{c}_{j} = b_{j}c_{j}+a_{j+1}b_{j+1}=J_{j,j}J_{j,j+1}+J_{j+1,j}J_{j+1,j+1}\eqn{}
 $$
 
-@ @c real NewtonSolver::a(index j) {
-  if (j==0) return 0.0;
-  real u = h*h;
-  real MMtrans = (JacobianMatrix(j,j-1)*JacobianMatrix(j,j)+JacobianMatrix(j-1,j)*JacobianMatrix(j-1,j-1))/u;
-  real partialSourceM = JacobianMatrix(j,j-1)*(partialSource(j)*u); /* $a_{j}\partial\sigma_{j}$ */
-  partialSourceM += JacobianMatrix(j-1,j)*(partialSource(j-1)*u); /* $c_{j-1}\partial\sigma_{j-1}$ */
-  return MMtrans-partialSourceM;
-}
-@ @c real NewtonSolver::b(index j) {
-  if (j>length-1 || j<0) return 0.0;
-  real MMtrans = pow(JacobianMatrix(j, j), 2.0);
-  if (j<length-1) MMtrans += pow(JacobianMatrix(j+1,j), 2.0);
-  if (j>0) MMtrans += pow(JacobianMatrix(j-1,j),2.0);
-  real partialSourceM = (partialSource(j)*h*h*2)*JacobianMatrix(j,j);
-  real sourceSquared = pow(partialSource(j)*h,2.0);
-  return (MMtrans/(h*h))-partialSourceM+sourceSquared;
-}
-@ @c real NewtonSolver::c(index j) {
-  if (j>=length-1) return 0.0;
-  real u = h*h;
-  real MMtrans = (JacobianMatrix(j,j+1)*JacobianMatrix(j,j)+JacobianMatrix(j+1,j+1)*JacobianMatrix(j+1,j))/u;
-  real partialSourceM = JacobianMatrix(j,j+1)*(partialSource(j)*u); /* $c_{j}\partial\sigma_{j}$ */
-  partialSourceM += JacobianMatrix(j+1,j)*(partialSource(j+1)*u); /* $a_{j+1}\partial\sigma_{j+1}$ */
-  return MMtrans-partialSourceM;
-}
-@ @c real NewtonSolver::d(index j) {
-  int ctr;
+@ @c real NewtonSolver::JacobianTransposeJacobian(index i, index j) {
   real ret = 0.0;
-  index start;
-  if (j==0) start = 0;
-  else {     start = j; start--; }
-  for(ctr = start; ctr<length && ctr<j+1; ctr++) {
-    ret += -JacobianMatrix(ctr,j)*(h*h*source(ctr)+h*h*partialSource(ctr)*phi[ctr]);
+  if (j==i) { /* $\tilde{b}_{i}$ */
+    ret += pow(JacobianMatrix(j,j),2.0);
+    if (j>0) ret += pow(JacobianMatrix(j-1,j-1), 2.0);
+    if (j<length-1) ret += pow(JacobianMatrix(j+1,j+1),2.0);
   }
-  real p = partialSource(j);
-  ret += (h*h*p)*(source(j)+p*phi[j]);
+  else if (j==i-1) { /* $\tilde{a}_{i}$ */
+    ret += JacobianMatrix(i,i)*JacobianMatrix(i,j); /* $b_{i}a_{i}$ */
+    if (j<length-1) ret += JacobianMatrix(j,i)*JacobianMatrix(j,j);
+  }
+  else if (j==i+1) { /* $\tilde{c}_{i}$ */
+    ret += JacobianMatrix(j,j)*JacobianMatrix(j,i); /* $b_{i+1}a_{i+1}$ */
+    ret += JacobianMatrix(i,j)*JacobianMatrix(i,i);
+  }
+  return ret;
+}
+
+@ @c real NewtonSolver::aTilde(index j) {
+  if (j==0) return 0.0;
+  return JacobianTransposeJacobian(j,j-1);
+}
+@ @c real NewtonSolver::bTilde(index j) {
+  if (j>length-1 || j<0) return 0.0;
+  return JacobianTransposeJacobian(j,j);
+}
+@ @c real NewtonSolver::cTilde(index j) {
+  if (j>=length-1) return 0.0;
+  return JacobianTransposeJacobian(j,j+1);
+}
+@ @c real NewtonSolver::a(index j) {
+  return aTilde(j);
+  if (j>0) return JacobianMatrix(j, j-1);
+  return 0.0;
+}
+
+@ @c real NewtonSolver::b(index j) {
+  return bTilde(j);
+  if (j<0 || j>length-1) return 0.0;
+  return JacobianMatrix(j,j);
+}
+
+@ @c real NewtonSolver::c(index j) {
+  return cTilde(j);
+  if (j>=length-1) return 0.0;
+  return JacobianMatrix(j,j+1);
+}
+
+@ The system we are trying to solve is
+$$
+\vec{F}(\phi) = (M\phi - \sigma(\phi))
+$$
+It will come in handy to implement this as a utility function.
+
+@ @c
+real NewtonSolver::F(index j) {
+  real ret =0.0;
+  real u = h*h;
+  if (j==0) {
+    ret = (BoundaryConditionAtOrigin(0)*phi[0]);
+    ret += (BoundaryConditionAtOrigin(1)*phi[1]);
+    ret = ret - source(1)*u;
+  } else if (j==length-1) {
+    ret = (SurfaceBoundaryCondition(length-2)*phi[length-2]);
+    ret += (SurfaceBoundaryCondition(length-1)*phi[length-1]);
+    ret = ret - source(length-2)*u;
+  } else if (j<length-1) {
+    ret = Laplacian(j,j)*phi[j];
+    if (j<length-1) ret += Laplacian(j,j+1)*phi[j+1];
+    if (j>0) ret += Laplacian(j,j-1)*phi[j-1];
+    ret = ret - source(j)*u;
+  }
+  return ret;
+}
+
+@ {\bf TODO:} Fix the |d(index j)| function to handle the proper
+  situation. I should also refactor the code to be more ``modular'' style.
+So, we have the right hand side now be:
+$$
+{\rm RHS} = -M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
+-M^{T}\sigma
++\left({\partial\sigma\over{\partial\phi}}\right)^{T}\sigma
++\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}.
+$$
+Lets analyze how each term contributes to the $\vec{d}$ (right hand side
+vector). Recall, $M$ is the discrete approximation to the Laplacian
+(``M'' is for {\it Laplace}\dots which is why I'm not an English
+literature professor\dots).
+
+We see
+$$
+\eqalign{
+M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
+&=\pmatrix{
+b_{0} & a_{1} &       &       \cr
+c_{0} & b_{1} & a_{2} &       \cr
+      & c_{1} & b_{2} & a_{3} \cr
+      &       & c_{2} & b_{3} \cr
+}\pmatrix{
+0 & \partial\sigma_{1} &                    & \cr
+0 & \partial\sigma_{1} &                    & \cr
+  &                    & \partial\sigma_{2} & \cr
+  &                    &                    & \partial\sigma_{3}\cr}\phi^{(n)}\cr
+&=
+\pmatrix{
+b_{0} & a_{1} &       &       \cr
+c_{0} & b_{1} & a_{2} &       \cr
+      & c_{1} & b_{2} & a_{3} \cr
+      &       & c_{2} & b_{3} \cr
+}\pmatrix{\phi^{(n)}_{1}\partial\sigma_{1}\cr
+\phi^{(n)}_{1}\partial\sigma_{1}\cr
+\phi^{(n)}_{2}\partial\sigma_{2}\cr
+\phi^{(n)}_{3}\partial\sigma_{3}\cr}}
+$$
+Hence we find
+$$
+-M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
+-M^{T}\sigma
+=-\pmatrix{
+b_{0} & a_{1} &       &       \cr
+c_{0} & b_{1} & a_{2} &       \cr
+      & c_{1} & b_{2} & a_{3} \cr
+      &       & c_{2} & b_{3} \cr
+}\pmatrix{\sigma_{0}+\phi^{(n)}_{1}\partial\sigma_{1}\cr
+\sigma_{1}+\phi^{(n)}_{1}\partial\sigma_{1}\cr
+\sigma_{2}+\phi^{(n)}_{2}\partial\sigma_{2}\cr
+\sigma_{3}+\phi^{(n)}_{3}\partial\sigma_{3}\cr}.\eqn{}
+$$
+This is probably the most difficult part of the considerations. The next
+two terms are considerably simpler.
+
+We see
+$$
+\left({\partial\sigma\over{\partial\phi}}\right)^{T}\sigma
+= \pmatrix{
+0 & 0 &                    & \cr
+\partial\sigma_{1} & \partial\sigma_{1} &                    & \cr
+  &                    & \partial\sigma_{2} & \cr
+  &                    &                    & \partial\sigma_{3}\cr}
+\pmatrix{\sigma_{0}\cr
+\sigma_{1}\cr
+\sigma_{2}\cr
+\sigma_{3}\cr}
+=\pmatrix{0\cr
+(\sigma_{0}+\sigma_{1})\partial\sigma_{1}\cr
+\sigma_{2}\partial\sigma_{2}\cr
+\sigma_{3}\partial\sigma_{3}\cr}
+$$
+Likewise
+$$
+\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
+=\pmatrix{
+0 & & & \cr
+ & 2(\partial\sigma_{1})^{2} & & \cr
+ & & (\partial\sigma_{2})^{2} & \cr
+ & & & (\partial\sigma_{3})^{2}\cr}\pmatrix{\phi^{(n)}_{0}\cr
+\phi^{(n)}_{1}\cr
+\phi^{(n)}_{2}\cr
+\phi^{(n)}_{3}\cr}
+=\pmatrix{0\cr
+2\phi^{(n)}_{1}(\partial\sigma_{1})^{2}\cr
+\phi^{(n)}_{2}(\partial\sigma_{2})^{2}\cr
+\phi^{(n)}_{3}(\partial\sigma_{3})^{2}\cr}
+$$
+
+@ @c real NewtonSolver::d(index j) {
+  return dTilde(j);
+  real ret = JacobianMatrix(j,j)*phi[j]-F(j);
+  if(j>0) ret+= JacobianMatrix(j,j-1)*phi[j-1];
+  if(j<length-1) ret+=JacobianMatrix(j,j+1)*phi[j+1];
+  return ret;
+}
+
+@ @c real NewtonSolver::dTilde(index j) {
+  real ret = JacobianTransposeJacobian(j,j)*phi[j]-JacobianMatrix(j,j)*F(j);
+  if (j>0)
+    ret += JacobianTransposeJacobian(j,j-1)*phi[j-1]-JacobianMatrix(j-1,j)*F(j-1);
+  if (j<length-1)
+    ret += JacobianTransposeJacobian(j, j+1)*phi[j+1]-JacobianMatrix(j+1,j)*F(j+1);
   return ret;
 }
 
@@ -1063,15 +1243,17 @@ $A\vec{x}=\vec{b}$ is precisely the vector
 $\vec{r}=A\vec{x}^{*}-\vec{b}$. Its norm is a measure of error.
 
 @ @c
-real NewtonSolver::residual() {
+real NewtonSolver::residual(bool swapIter) {
   if (iterateCounter == 0) throw std::out_of_range("Must iterate before computing residual");
+  if(swapIter) std::swap(phi,nextPhi);
   real r = 0.0;
   real dr = 0.0;
   index j;
   for (j=1; j<length-1; j++) {
-    dr=fabs((Laplacian(j,j-1)*phi[j-1]+Laplacian(j,j)*phi[j]+Laplacian(j,j+1)*phi[j+1])-h*h*source(j));
+    dr=fabs(F(j));
     r += dr*dr;
   }
+  if(swapIter) std::swap(phi,nextPhi);
   return sqrt(r);
 }
 
@@ -1080,6 +1262,14 @@ real NewtonSolver::residual() {
 
 @ @<Residual at Surface@>=
   r += pow((SurfaceBoundaryCondition(length-2)*phi[length-2]+SurfaceBoundaryCondition(length-1)*phi[length-1])-h*h*source(length-1),2.0);
+
+@ @c real NewtonSolver::relativeError() {
+  real ret = 0.0;
+  for(index j=0; j<length; j++) {
+    ret += pow(phi[j]-nextPhi[j],2.0);
+  }
+  return sqrt(ret);
+}
 
 @ @c
 real NewtonSolver::norm() {
@@ -1108,13 +1298,19 @@ and gradient descent.)
 @ @c
 void run(NewtonSolver *f, real tol) {
   index i;
-  real res_;
+  real res_, prevRes, relErr;
   f->ThomasInvert();
+  res_ = f->residual(true);
+  std::cout<<"Residual(0): "<<res_<<std::endl;
+  if (res_ < 1.0) return;
   for(i=0; 10>i; i++) {
+    prevRes = res_;
     f->ThomasInvert();
+    relErr = f->relativeError();
     res_ = f->residual();
-    std::cout<<"Residual: "<<res_<<std::endl;
-    if (i>0 && res_<tol) break;
+    std::cout<<"Residual("<<(i+1)<<"): "<<res_<<std::endl;
+    std::cout<<"Relative Error("<<i+1<<"): "<<relErr<<std::endl;
+    if (i>0 && (res_<tol || relErr<tol)) break;
   }
 }
 
@@ -1266,29 +1462,22 @@ void minimizeR() { @#
   real massChi_=100.0;
   real N_=1e3;
   real step = 0.02;
-  index maxIter = 20;
-  R_ = 0.1;
-  for(index i=0; i<maxIter; i++) {
+  index maxIter = 100;
+  R_ = 0.6;
+  for(index i=0; i<40; i++) {
     len = (index)(R_/cbrtEps);
     f = new NewtonSolver(len, R_, alpha_, massChi_, N_);
     run(f, cbrtEps*R_);
-    std::cout<<"R: "<<R_<<std::endl;
-    std::cout<<"energy: "<<(f->energy())<<std::endl;
     if (i==0 || (f->energy())<eMax) {
       eMax = f->energy();
       rMax = R_;
-    } else {
-      
-      rMin = R_;
-      eMin = f->energy();
     }
-    if (rMin > 0.0) {
-      R_ = 0.5*(rMin + rMax);
-    } else {
-      R_ += 1.0;
-    }
+    R_ += 0.002;
+    std::cout<<"E("<<R_<<") = "<<(f->energy())<<std::endl;
     delete f;
   }
+  std::cout<<"R minimized at: "<<rMax<<std::endl;
+  std::cout<<"Energy: "<<eMax<<std::endl;
 }
 
 @ We use the 5-point stencil to approximate the change in energy. This
@@ -1320,12 +1509,11 @@ is a good $\bigO{h^5}$ approximation to the derivative.
   return 0;
 }
 
-@ {\bf Do not panic.}
-The first residual printed indicates how badly the initial guess {\it was}.
-It is usually large, since it compares the non-perturbative guess with
-{\it the actual result}. Newton's method converges fairly quickly, each
-iteration reducing the residual by a factor of about $10^{6}$. So
-do not be shocked to find the sequence of residuals resemble: $10^5$,
-$1$, $10^{-5}$, $10^{-11}$.
+@ {\bf Accuracy, Convergence.}
+Although the relative error starts small, and decreases quickly, the
+residual remains unacceptably large. (Something like $\sim\bigO{10\cdot N}$ for
+$N$ components in the vector $\phi_{j}$.) Consequently, this approach
+does not appear to work: the system is just too nonlinear. Newton's
+method converges, but to the wrong value.
 
 \vfill\eject
