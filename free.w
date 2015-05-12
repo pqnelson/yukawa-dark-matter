@@ -494,8 +494,9 @@ NewtonSolver::NewtonSolver(index length_, real R_, real alpha_, real massChi_, r
     r = (j+1)*h;
     cPrime[j] = 0.0;
     nextPhi[j] = phi[j] = -alpha*1.5*(N/R)*(3-pow(r/R,2.0))*pow(massChi/pF(r),3.0)*i(pF(r)/massChi);
-    if (partialSource(j)==0.0) {
-      std::cout<<"partialSource("<<j<<") is zero"<<std::endl;
+    if (j>0 && j<length-1) {
+      if (partialSource(j)==0.0)
+        std::cout<<"partialSource("<<j<<") is zero"<<std::endl;
     }
   }
 }
@@ -687,8 +688,9 @@ $$
 $$
 Hence we find the desired result.\quad\slug
 
-
 @ @c real NewtonSolver::partialSource(index j) {
+  if (j==0) throw std::out_of_range("Attempting to get partialSource(0)");
+  if (j>=length-1) throw std::out_of_range("Attempting to get partialSource(j>N-1)");
   real scalingMass = massChi + sqrt(4.0*PI*alpha)*phi[j];
   if (scalingMass == 0.0) throw std::logic_error("Divide by Zero");
   real fermiMomentum = pF(j);
@@ -755,57 +757,99 @@ This presents the solution to the unstable boundary condition we
 couldn't tackle with ghost points. For simplicity, we multiply through
 by $-h/2$:
 $$
-{3\over {h^{2}}}\phi_{0}-{3\over{h^{2}}}\phi_{1}=\sigma_{1}\eqn{}
+{-6\over {h^{2}}}\phi_{0}+{6\over{h^{2}}}\phi_{1}=\sigma_{1}\eqn{}
 $$
 which nicely speeds things up. Again, delaying dividing by $h^{2}$ until
 the last possible moment gives us:
 
 @ @c
 real NewtonSolver::BoundaryConditionAtOrigin(index i) {
-  if (i==0) return 3.0;
-  if (i==1) return -3.0;
+  if (i==0) return -6.0;
+  if (i==1) return 6.0;
   return 0.0;
 }
 
 @ {\bf Surface Boundary Condition.}
-For the surface boundary condition
+This is a bit more involved, so let us be careful. We will denote
 $$
-\left[
-{1\over{2h}}\left({N(N-1)\over{(N+1)(N-2)}}+3\right)
-+\pmatrix{{\rm RHS\ of}\cr
-{\rm Boundary}\cr
-{\rm Condition}}
-\right]\phi_{N} - {1\over h}\left[{N-1\over{N-2}}-2\right]\phi_{N-1}
-= {-1\over 2}{{N-1}\over{N-2}}h\sigma_{N-1}.
+\phi'(R) = c_{0}\phi(R)
 $$
-We can rewrite this as
+as the boundary condition on the surface. Then we have
 $$
-{-1\over{h^{2}}}\left[
-\left({N\over{N+1}}\right)
-+3\left({{N-3}\over{N-1}}\right)
-+2h\left({{N-2}\over{N-1}}\right)({\rm RHS})
-\right]\phi_{N}
--{2\over{h^{2}}}\left[{{N-3}\over{N-1}}\right]\phi_{N-1}
-=\sigma_{N-1}
+{1\over{2h}}\phi_{N-2}-{4\over{2h}}\phi_{N-1}+{3\over{2h}}\phi_{N} = c_{0}\phi_{N}
 $$
-where
+approximate the condition. To eliminate $\phi_{N-2}$, we examine the
+equations of motion from the previous row of the system
 $$
-{\rm RHS} = -R\phi_{N}e^{-m_{\phi}R}\left[m_{\phi}+{1\over{R^{2}}}\right].
+{N\over{N-1}}{1\over{h^{2}}}\phi_{N}
+-{2\over{h^{2}}}\phi_{N-1}
++{{N-2}\over{N-1}}{1\over{h^{2}}}\phi_{N-2}
+=\sigma_{N-1}.
 $$
-For the time being, we will simply use the ghost point on the surface
-boundary condition.
+We manipulate this equation to have the coefficient of $\phi_{N-2}$ be unity
+$$
+{{N}\over{N-2}}{1\over{h^{2}}}\phi_{N}-{{N-1}\over{N-2}}{2\over{h^{2}}}\phi_{N-1}
++{1\over{h^{2}}}\phi_{N-2}
+={{N-1}\over{N-2}}\sigma_{N-1}
+$$
+We multiply through by $h/2$:
+$$
+{{N}\over{N-2}}{1\over{2h}}\phi_{N}
+-{{N-1}\over{N-2}}{1\over{h}}\phi_{N-1}
++{1\over{2h}}\phi_{N-2}
+={{N-1}\over{N-2}}{h\over 2}\sigma_{N-1}.
+$$
+Now we take our surface boundary condition and subtract out this
+manipulated equation of motion:
+$$
+\left(3-{{N}\over{N-2}}\right){1\over{2h}}\phi_{N}
++\left(-2+{{N-1}\over{N-2}}\right){1\over{h}}\phi_{N-1}
+=c_{0}\phi_{N}-{{N-1}\over{N-2}}{h\over 2}\sigma_{N-1}.
+$$
+Great. Now to make this uniform with the rest of the system, we should
+have the right hand side be just $\sigma_{N-1}$.
+
+Our first step is to throw $c_{0}\phi_{N}$ to the other side:
+$$
+\left(3-{{N}\over{N-2}}-2h c_{0}\right){1\over{2h}}\phi_{N}
++\left(-2+{{N-1}\over{N-2}}\right){1\over{h}}\phi_{N-1}
+=-{{N-1}\over{N-2}}{h\over 2}\sigma_{N-1}.
+$$
+Now we just multiply through by the inverse of the coefficient of
+$\sigma_{N-1}$ to get
+$$
+-{{N-2}\over{N-1}}{2\over h}\left(3-{{N}\over{N-2}}-2h c_{0}\right){1\over{2h}}\phi_{N}
+-{{N-2}\over{N-1}}{2\over h}\left(-2+{{N-1}\over{N-2}}\right){1\over{h}}\phi_{N-1}
+=\sigma_{N-1}.
+$$
+Gathering terms first gives us
+$$
+-{{N-2}\over{N-1}}{2\over h}\left({{2N-6}\over{N-2}}-2h c_{0}\right){1\over{2h}}\phi_{N}
+-{{N-2}\over{N-1}}{2\over h}\left({{4-N}\over{N-2}}\right){1\over{h}}\phi_{N-1}
+=\sigma_{N-1}.
+$$
+Hence we find
+$$
+-\left({{2N-6}\over{N-1}}-2h{{N-2}\over{N-1}}c_{0}\right){1\over{h^{2}}}\phi_{N}
++\left({{N-4}\over{N-1}}\right){2\over{h^{2}}}\phi_{N-1}
+=\sigma_{N-1}.
+$$
+We simply take
+$$
+c_{0} = -Re^{-m_{\phi}R}\left[m_{\phi}+{1\over{R^{2}}}\right]
+$$
+and we're done.
 
 @ @c
 real NewtonSolver::SurfaceBoundaryCondition(index j) {
   index N_ = length-1;
   if (j==N_-1) {
-    return -2.0*(((N_-3)*1.0)/((N_-1)*1.0));
+    return (((N_-4)*2.0)/((N_-1)*1.0));
   }
   else if (j==N_) {
-    real RHS = R*phi[N_]*exp(-massPhi*R)*(massPhi + pow(R,-2.0));
-    real ret = ((N_*1.0)/((N_+1)*1.0));
-    ret += 3.0*(((N_+3)*1.0)/((N_-1)*1.0));
-    ret += 2*h*(((N_-2)*1.0)/((N_-1)*1.0))*RHS;
+    real c = -exp(-massPhi*R)*(R*massPhi + (1.0/R));
+    real ret = -2.0*((1.0*(N_-3))/(1.0*(N_-1)));
+    ret += (2.0*h*(N_-2)/(1.0*(N_-1)))*c;
     return ret;
   }
   return 0.0;
@@ -861,7 +905,12 @@ real NewtonSolver::JacobianMatrix(index i, index j) {
   if (j == i-1) {
     return Laplacian(i,j)/h;
   }
-  if (j == i) return Laplacian(i, j)/h-h*partialSource(i);
+  if (j == i) {
+    if (i==0) {
+      std::cout<<"Somehow got to (i,j)=(0,0) illegally..."<<std::endl;
+    }
+    return Laplacian(i, j)/h-h*partialSource(i);
+  }
   return 0.0; /* somehow someone asked for a zero entry */
 }
 
@@ -956,113 +1005,22 @@ It will come in handy to implement this as a utility function.
 @ @c
 real NewtonSolver::F(index j) {
   real ret =0.0;
-  real u = h*h;
   if (j==0) {
     ret = (BoundaryConditionAtOrigin(0)*phi[0]);
     ret += (BoundaryConditionAtOrigin(1)*phi[1]);
-    ret = ret - source(1)*u;
+    ret = (ret/h) - source(1)*h;
   } else if (j==length-1) {
     ret = (SurfaceBoundaryCondition(length-2)*phi[length-2]);
     ret += (SurfaceBoundaryCondition(length-1)*phi[length-1]);
-    ret = ret - source(length-2)*u;
+    ret = (ret/h) - source(length-2)*h;
   } else if (j<length-1) {
     ret = Laplacian(j,j)*phi[j];
     if (j<length-1) ret += Laplacian(j,j+1)*phi[j+1];
     if (j>0) ret += Laplacian(j,j-1)*phi[j-1];
-    ret = ret - source(j)*u;
+    ret = (ret/h) - source(j)*h;
   }
   return ret;
 }
-
-@ {\bf TODO:} Fix the |d(index j)| function to handle the proper
-  situation. I should also refactor the code to be more ``modular'' style.
-So, we have the right hand side now be:
-$$
-{\rm RHS} = -M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
--M^{T}\sigma
-+\left({\partial\sigma\over{\partial\phi}}\right)^{T}\sigma
-+\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}.
-$$
-Lets analyze how each term contributes to the $\vec{d}$ (right hand side
-vector). Recall, $M$ is the discrete approximation to the Laplacian
-(``M'' is for {\it Laplace}\dots which is why I'm not an English
-literature professor\dots).
-
-We see
-$$
-\eqalign{
-M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
-&=\pmatrix{
-b_{0} & a_{1} &       &       \cr
-c_{0} & b_{1} & a_{2} &       \cr
-      & c_{1} & b_{2} & a_{3} \cr
-      &       & c_{2} & b_{3} \cr
-}\pmatrix{
-0 & \partial\sigma_{1} &                    & \cr
-0 & \partial\sigma_{1} &                    & \cr
-  &                    & \partial\sigma_{2} & \cr
-  &                    &                    & \partial\sigma_{3}\cr}\phi^{(n)}\cr
-&=
-\pmatrix{
-b_{0} & a_{1} &       &       \cr
-c_{0} & b_{1} & a_{2} &       \cr
-      & c_{1} & b_{2} & a_{3} \cr
-      &       & c_{2} & b_{3} \cr
-}\pmatrix{\phi^{(n)}_{1}\partial\sigma_{1}\cr
-\phi^{(n)}_{1}\partial\sigma_{1}\cr
-\phi^{(n)}_{2}\partial\sigma_{2}\cr
-\phi^{(n)}_{3}\partial\sigma_{3}\cr}}
-$$
-Hence we find
-$$
--M^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
--M^{T}\sigma
-=-\pmatrix{
-b_{0} & a_{1} &       &       \cr
-c_{0} & b_{1} & a_{2} &       \cr
-      & c_{1} & b_{2} & a_{3} \cr
-      &       & c_{2} & b_{3} \cr
-}\pmatrix{\sigma_{0}+\phi^{(n)}_{1}\partial\sigma_{1}\cr
-\sigma_{1}+\phi^{(n)}_{1}\partial\sigma_{1}\cr
-\sigma_{2}+\phi^{(n)}_{2}\partial\sigma_{2}\cr
-\sigma_{3}+\phi^{(n)}_{3}\partial\sigma_{3}\cr}.\eqn{}
-$$
-This is probably the most difficult part of the considerations. The next
-two terms are considerably simpler.
-
-We see
-$$
-\left({\partial\sigma\over{\partial\phi}}\right)^{T}\sigma
-= \pmatrix{
-0 & 0 &                    & \cr
-\partial\sigma_{1} & \partial\sigma_{1} &                    & \cr
-  &                    & \partial\sigma_{2} & \cr
-  &                    &                    & \partial\sigma_{3}\cr}
-\pmatrix{\sigma_{0}\cr
-\sigma_{1}\cr
-\sigma_{2}\cr
-\sigma_{3}\cr}
-=\pmatrix{0\cr
-(\sigma_{0}+\sigma_{1})\partial\sigma_{1}\cr
-\sigma_{2}\partial\sigma_{2}\cr
-\sigma_{3}\partial\sigma_{3}\cr}
-$$
-Likewise
-$$
-\left({\partial\sigma\over{\partial\phi}}\right)^{T}\left({\partial\sigma\over{\partial\phi}}\right)\phi^{(n)}
-=\pmatrix{
-0 & & & \cr
- & 2(\partial\sigma_{1})^{2} & & \cr
- & & (\partial\sigma_{2})^{2} & \cr
- & & & (\partial\sigma_{3})^{2}\cr}\pmatrix{\phi^{(n)}_{0}\cr
-\phi^{(n)}_{1}\cr
-\phi^{(n)}_{2}\cr
-\phi^{(n)}_{3}\cr}
-=\pmatrix{0\cr
-2\phi^{(n)}_{1}(\partial\sigma_{1})^{2}\cr
-\phi^{(n)}_{2}(\partial\sigma_{2})^{2}\cr
-\phi^{(n)}_{3}(\partial\sigma_{3})^{2}\cr}
-$$
 
 @ @c real NewtonSolver::d(index j) {
   return dTilde(j);
@@ -1142,95 +1100,6 @@ void NewtonSolver::ThomasInvert() {
     if (j==0) break;
   }
 
-@* Crout Factorization.
-Another LU-decomposition of a tridiagonal matrix which is not
-necessarily diagonal dominant. Alas, the Jacobian matrix is rarely
-diagonal dominant for our situation --- the three entries are roughly of
-the same magnitudes.
-
-If we write out the matrix multiplication $A=LU$ explicitly, we find:
-$$
-\left(\matrix{
-a_{11} & a_{12} &      0 &    0   & \cdots & 0\cr
-a_{21} & a_{22} & a_{23} &    0   & \ddots & \vdots\cr
-   0   & a_{32} & a_{33} & a_{34} & \ddots & \vdots\cr
-\vdots & \ddots & \ddots & \ddots & \ddots & \vdots\cr
-0      & \cdots & \cdots & \cdots & a_{n,n-1} & a_{n,n}}
-\right)
-= \left(\matrix{
-l_{11} & 0      & \dots & 0\cr
-l_{21} & l_{22} & \ddots&\vdots\cr
-0      & \ddots & \ddots&\vdots\cr
-\vdots & \ddots & \ddots& 0\cr
-0      & \dots  & l_{n,n-1} & l_{n,n}
-}\right)
-\left(\matrix{
-1      & u_{12} & 0      & \dots & 0\cr
-0      & 1      & u_{23} & \dots & 0\cr
-\vdots & \ddots & \ddots & \ddots&\vdots\cr
-\vdots & \ddots & \ddots & \ddots&\vdots\cr
-0      & \dots  & \dots  & 0     &1}\right)
-$$
-Matrix multiplication will tell us:
-$$a_{11} = l_{11}$$
-$$a_{i,i-1} = l_{i,i-1}$$
-for $i=2,3,\dots,n$;
-$$a_{ii}=l_{i,i-1}u_{i-1,i} + l_{ii}$$
-for $i=2,3,\dots,n$; and
-$$
-a_{i,i+1}=l_{i,i}u_{i,i+1}
-$$
-for $i=1,2,\dots,n-1$.
-
-
-@ @c
-void NewtonSolver::CroutFactorization() {
-  iterateCounter++;
-  index j;
-  real l[2];
-  real *u = cPrime;
-  std::swap(phi,nextPhi);
-  
-  @<Solve Lower Triangular Part@>@;
-  @<Solve Upper Triangular Part@>@;
-}
-
-@ @<Solve Lower...@>=
-  std::cout<<"Solving the lower"<<std::endl;
-  l[0] = 0.0;
-  l[1]=b(0);
-  if (l[1]==0.0)
-    u[0]=0.0;
-  else
-    u[0] = c(0)/l[1];
-  nextPhi[0] = d(0)/l[1];
-  /* j-th row of L */
-  for(j=1; j<length-1; j++) {
-    l[0] = a(j);
-    l[1] = b(j) - l[0]*u[j-1];
-    if (l[1]==0.0) {
-      std::cout<<"l["<<j<<"]["<<j<<"]=="<<l[0]<<std::endl;
-    }
-    u[j] = c(j)/l[1];
-    nextPhi[j] = (d(j) - l[0]*nextPhi[j-1])/l[1];
-  }
-  /* last row */
-  l[0] = a(length-1);
-  l[1] = b(length-1) - l[0]*u[length-2];
-  if (l[1]==0.0) {
-    std::cout<<"l[N-1][N-1]=="<<l[0]<<std::endl;
-  }
-  nextPhi[length-1] = (d(length-1)-l[0]*nextPhi[length-2])/l[1];
-
-@ @<Solve Upper...@>=
-  std::cout<<"Solving the upper"<<std::endl;
-  for(j=length-2; j>0; j--) {
-    if (j==0) { std::cout<<"j==0"<<std::endl;
-    std::cout<<"u[0] = "<<u[0]<<std::endl; }
-    nextPhi[j]=nextPhi[j]-(u[j]*nextPhi[j+1]);
-  }
-  std::cout<<"We're done!!"<<std::endl;
-
 @* Minimizing Energy.
 We need to keep iteratively adjusting the radius $R$ until we minimize
 the energy. How do we do this? Well, we should keep performing Newton's
@@ -1240,7 +1109,8 @@ Newton's method to adjust $R$ via the ``steepest descent''.
 @ {\bf Residual.}
 The residual for an approximate solution $\vec{x}^{*}$ to the system
 $A\vec{x}=\vec{b}$ is precisely the vector
-$\vec{r}=A\vec{x}^{*}-\vec{b}$. Its norm is a measure of error.
+$\vec{r}=A\vec{x}^{*}-\vec{b}$. Its norm is a measure of error. We see
+that this is precisely the norm of |NewtonSolver::F|.
 
 @ @c
 real NewtonSolver::residual(bool swapIter) {
@@ -1257,11 +1127,10 @@ real NewtonSolver::residual(bool swapIter) {
   return sqrt(r);
 }
 
-@ @<Residual at Origin@>=
-  r += pow((BoundaryConditionAtOrigin(0)*phi[0]+BoundaryConditionAtOrigin(1)*phi[1])-h*h*source(0),2.0);
-
-@ @<Residual at Surface@>=
-  r += pow((SurfaceBoundaryCondition(length-2)*phi[length-2]+SurfaceBoundaryCondition(length-1)*phi[length-1])-h*h*source(length-1),2.0);
+@ {\bf Relative Error.}
+On the other hand, we can measure a notion of ``the vectors are
+converging towards something''. This is $\norm{\phi^{(n+1)}-\phi^{(n)}}$,
+or the ``relative error''.
 
 @ @c real NewtonSolver::relativeError() {
   real ret = 0.0;
@@ -1294,7 +1163,6 @@ minimize the energy for the system, then we should increase $R$. (``A
 little must be good, more must be better'' --- the motto of alcoholics
 and gradient descent.)
 
-
 @ @c
 void run(NewtonSolver *f, real tol) {
   index i;
@@ -1303,13 +1171,15 @@ void run(NewtonSolver *f, real tol) {
   res_ = f->residual(true);
   std::cout<<"Residual(0): "<<res_<<std::endl;
   if (res_ < 1.0) return;
-  for(i=0; 10>i; i++) {
+  for(i=0; 100>i; i++) {
     prevRes = res_;
     f->ThomasInvert();
     relErr = f->relativeError();
     res_ = f->residual();
-    std::cout<<"Residual("<<(i+1)<<"): "<<res_<<std::endl;
-    std::cout<<"Relative Error("<<i+1<<"): "<<relErr<<std::endl;
+    if (i%10==0 || (res_<tol || relErr<tol)) {
+      std::cout<<"Residual("<<(i+1)<<"): "<<res_<<std::endl;
+      std::cout<<"Relative Error("<<i+1<<"): "<<relErr<<std::endl;
+    }
     if (i>0 && (res_<tol || relErr<tol)) break;
   }
 }
