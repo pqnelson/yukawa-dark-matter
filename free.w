@@ -444,7 +444,7 @@ public: @/
   real cTilde(index i);
   real dTilde(index i);
   real F(index j);
-  void CroutFactorization();
+  void extrapolate();
   void ThomasInvert(); /* Thomas' Algorithm */
   real residual(bool swapIter=false);
   real norm();
@@ -1100,6 +1100,47 @@ void NewtonSolver::ThomasInvert() {
     if (j==0) break;
   }
 
+@* Extrapolation.
+So, although we have {\it proven} the iterative series will converge, it
+turns out to converge {\it very slowly}. We will use Newton's divided
+difference interpolation to extrapolate out the iterates, speeding up
+the system considerably.
+
+@ @c
+void NewtonSolver::extrapolate() {
+  real *prev = new real[length];
+  real step = 2.0*(1.25+relativeError());
+  @<Copy the current guess@>@;
+  @<Iterate twice@>@;
+  @<Interpolate the guess@>@;
+  delete prev; /* clean up */
+}
+
+@ Since we are using a dynamically created array, one simply cannot call
+|std::copy()|. Well, we can, we just do not use iterators to point to
+the beinning or end of the arrays.
+
+@<Copy the current guess@>=
+  std::copy(nextPhi, nextPhi+length, prev);
+
+@ @<Iterate twice@>=
+  ThomasInvert();
+  ThomasInvert();
+
+@
+So, Newton's divided difference formula for three points $(1, y_{1})$,
+$(2, y_{2})$, and $(3, y_{3})$ would be
+$$
+p(n) = y_{1} + (y_{2}-y_{1})(n-1) + {{y_{3}-2y_{2}+y_{1}}\over 2}(n-1)(n-2)
+$$
+We then guess for $n=10$ what the answer will be.
+
+@<Interpolate the guess@>=
+  for(index j=0; j<length; j++) {
+    real y = nextPhi[j];
+    nextPhi[j] = prev[j] + (phi[j]-prev[j])*(step-1.0) + 0.5*(step-1.0)*(step-2.0)*(nextPhi[j]-2*phi[j]+prev[j]);
+  }
+
 @* Minimizing Energy.
 We need to keep iteratively adjusting the radius $R$ until we minimize
 the energy. How do we do this? Well, we should keep performing Newton's
@@ -1165,18 +1206,24 @@ and gradient descent.)
 
 @ @c
 void run(NewtonSolver *f, real tol) {
-  index i;
+  index i, j;
   real res_, prevRes, relErr;
-  f->ThomasInvert();
+  for(i=0; i<20; i++)
+    f->ThomasInvert();
   res_ = f->residual(true);
   std::cout<<"Residual(0): "<<res_<<std::endl;
   if (res_ < 1.0) return;
   for(i=0; 100>i; i++) {
     prevRes = res_;
-    f->ThomasInvert();
+    for(j=0; j<10; j++) {
+      f->ThomasInvert();
+      f->ThomasInvert();
+      f->ThomasInvert();
+      f->extrapolate();
+    }
     relErr = f->relativeError();
     res_ = f->residual();
-    if (i%10==0 || (res_<tol || relErr<tol)) {
+    if (true || i%10==0 || (res_<tol || relErr<tol)) {
       std::cout<<"Residual("<<(i+1)<<"): "<<res_<<std::endl;
       std::cout<<"Relative Error("<<i+1<<"): "<<relErr<<std::endl;
     }
