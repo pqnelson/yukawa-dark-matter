@@ -164,7 +164,7 @@ will either (a) have to modify this routine, or (b) modify the
    real rPrime = (j-2)*h;
    real rPrimeSq = SQ(rPrime);
    real u = rPrime/r; 
-   real c = SQ(model->coupling()/(r*PI)); // *rSq
+   real c = (model->coupling())/rSq;
 
    real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
    // Simpson's rule for quadrature

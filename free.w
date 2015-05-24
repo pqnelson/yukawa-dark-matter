@@ -256,7 +256,9 @@ glaring problem: we never specified $p_{F}(r)$.
 
 @c
 real YukawaDarkMatter::source(real mass, real r) {
-     return CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
+     real massTerm = m_scalarMass*massToField(mass);
+     real fermionContribution = (coupling()/PI_SQ)*CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
+     return fermionContribution-massTerm;
 }
 
 @ {\bf Momentum Ansatz.}
@@ -323,11 +325,10 @@ $$
 $$
 and for the massless case, we just take $m_{\phi}\to0$.
 
-\rmk
-We need to modify this for the massive case.
-
 @c real YukawaDarkMatter::surfaceBoundaryCondition(real phi) {
-   return -phi/m_nuggetSize;
+   real mPhi = SQ(m_scalarMass);
+   real R = m_nuggetSize;
+   return -phi*exp(-mPhi*R)*(mPhi + (1.0/R));
 }
 
 @ {\bf Constraint: Positivity of Mass.}
@@ -355,13 +356,15 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 
 @ @<Model Param...@>=
         real m_fermionMass, m_nuggetSize, m_couplingConstant, m_fermionNumber;
-
+        real m_scalarMass;
 @ @<Model constructor@>=
-  YukawaDarkMatter(real massChi, real R, real coupling, real fermionNumber): 
+  YukawaDarkMatter(real massChi, real R, real coupling, real
+        fermionNumber, real scalarMass=0.0): 
   m_fermionMass(massChi), 
   m_nuggetSize(R),
   m_couplingConstant(coupling),
-  m_fermionNumber(fermionNumber)
+  m_fermionNumber(fermionNumber),
+  m_scalarMass(scalarMass)
    {}
 
 @ @<Accessor Methods@>=
@@ -393,6 +396,7 @@ constexpr auto PI_3 = 1.0471975511965977461542144610932L;
 constexpr auto PI_8 = 0.39269908169872415480783042290994L;
 constexpr auto FOUR_PI = 12.566370614359172953850573533118L;
 constexpr auto SQRT_FOUR_PI = 3.5449077018110320545963349666823L;
+constexpr auto PI_SQ = 9.8696044010893586188344909998762L;
 typedef long double real;
 typedef std::size_t index;
 real convertAlphaToCoupling(real alpha) { return SQRT_FOUR_PI*sqrt(alpha); }
