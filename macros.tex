@@ -1,25 +1,34 @@
+\newcount\eqcount
+\eqcount=0
+
+\def\eqn{{\global\advance\eqcount by1}\eqno{(\the\eqcount)}}
+
+%%%
+% Label helpers
+%%%
+\def\callthis#1{\edef#1{\number\secno}}
+\def\labelEqn#1{\edef#1{\the\eqcount}}
+
+%%%
+% links
+%%%
+\def\arXiv#1{\pdfURL{{\tt arXiv:#1}}{http://arXiv.org/abs/#1}}
+
+%%%
+% Proofs
+%%%
+\def\proof{\medbreak\noindent{\it Proof.}\enspace\ignorespaces}
+\def\slug{\hbox{\kern1.5pt\vrule width2.5pt height6pt depth1.5pt\kern1.5pt}}
+\def\slugonright{\vrule width0pt\nobreak\hfill\slug}
+
+\def\rmk{\medbreak\noindent{\it Remark.}\enspace\ignorespaces}
+
+%%%
+% Notation
+%%%
 \def\arcsinh{\mathop{\rm ArcSinh}\nolimits}
 \def\abs#1{|#1|}
 \def\vecNorm{\delimiter"26B30D}
 \def\norm#1{\vecNorm#1\vecNorm}
-\newcount\eqcount
-\eqcount=0
 \def\vec#1{{\bf #1}}
-\def\slug{\hbox{\kern1.5pt\vrule width2.5pt height6pt depth1.5pt\kern1.5pt}}
-\def\slugonright{\vrule width0pt\nobreak\hfill\slug}
-
-\def\eqn{{\global\advance\eqcount by1}\eqno{(\the\eqcount)}}
-%%%
-% links
-%%%
-\def\rgboo#1{\pdfliteral{#1 rg #1 RG}}
-\def\rgbo#1#2{\rgboo{#1}#2\rgboo{0 0 0}}
-\def\rgb#1#2{\mark{#1}\rgbo{#1}{#2}\mark{0 0 0}}
-\def\arXiv#1{%
-	\noindent\pdfstartlink user
-		{/Subtype /Link
-		/Border [ 0 0 0 ]
-		/A << /S /URI /URI (http://arXiv.org/abs/#1) >>}{\rgb{1 0 0}{{\tt arXiv:#1}}}%
-	\pdfendlink}
-
 \def\bigO#1{{\cal O}\left(#1\right)}
