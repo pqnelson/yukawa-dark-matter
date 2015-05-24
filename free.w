@@ -461,7 +461,7 @@ I'll just examine certain test cases.
 
 @c
 int main() {
-    YukawaDarkMatter *model = TestB();
+    YukawaDarkMatter *model = TestC();
     Solver *solver = new Solver(model, 1000000);
     solver->run();
     real *m = solver->getMass();

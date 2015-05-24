@@ -28,6 +28,8 @@ private:
         index length;
         void iterate(index j);
         void solveScalarField();
+        void shootingMethod();
+        void bisectionMethod();
 public:
         Solver(YukawaDarkMatter *m, index l): model(m), m_mass(new
         real[l]), length(l) {};
@@ -195,11 +197,14 @@ void Solver::solveScalarField() {
      }
 }
 
+
 @ {\bf Bisection Method.}
-We now iteratively determine the solution.
+A far more cautious approach, because look: we know $0\leq m(0)\leq
+m_{\chi}$, so why not just use the bisection method and iteratively
+solve the system 30 times?
 
 @c
-void Solver::run() {
+void Solver::bisectionMethod() {
      real massLowerBound = 0.0;
      real massUpperBound = model->fermionMass();
      real m, res;
@@ -220,6 +225,99 @@ void Solver::run() {
          j--;
        }
      }
+}
+
+@ {\bf Shooting Method.}
+We now iteratively determine the solution. The method so far is
+incredibly naive, readjusting the initial position based on the sign of
+the residual of the surface boundary condition. One method to speed this
+up is to come up with a linear approximation of the residual for the
+first couple iterations, the solve this approximation for the mass which
+would make the residual vanish. So instead of 30 or more iterations,
+it'd boil down to---say---5 or so.
+
+If $m_{0}$ produces a residual $\rho_{0}$, and $m_{1}$ produces residual
+$\rho_{1}$, then we have the linear approximation
+$$
+\rho(m) = \rho_{0} + \left({{\rho_{1}-\rho_{0}}\over{m_{1}-m_{0}}}\right)(m-m_{0}).
+$$
+We want to find the $m$ such that $\rho(m)=0$. We find, by basic
+algebra, that
+$$
+m=m_{0}-\rho_{0}\left({{m_{1}-m_{0}}\over{\rho_{1}-\rho_{0}}}\right).
+$$
+This gives us a way to find the solution faster (in theory).
+
+@c
+void Solver::shootingMethod() {
+  const real TOL = 1e-7;
+  real massLowerBound = 0.0;
+  real massUpperBound = model->fermionMass();
+  real m, residual_;
+  real masses[2];
+  real res[2];
+  int k=0;
+  for(int j=0; j<2; j++) {
+    @<Set the initial condition@>@;
+    @<Solve the System Once@>@;
+    masses[j] = m;
+    residual_ = res[j] = residual();
+    if(res[j]>0.0) massUpperBound = m;
+    if(res[j]<0.0) massLowerBound = m;
+    if(j==0 && (massUpperBound==model->fermionMass())) {
+      @<Adjust the bounds if needed@>@;
+    }
+  }
+  for(k=0; k<10; k++) {
+    @<Solve System with Extrapolated...@>@;
+    @<Update the Residual and Masses@>@;
+  }
+}
+
+@ @<Update the Residual and Masses@>=
+  masses[0] = masses[1];
+  res[0] = res[1];
+  masses[1] = m;
+  residual_ = res[1] = residual();
+  @<Adjust the bounds if needed@>@;
+
+@ @<Solve System with Extrapolated Mass@>=
+  m = masses[0] - res[0]*((masses[1]-masses[0])/(res[1]-res[0]));
+  @<Fallback to Bisection@>@;
+  m_mass[0] = m;
+  m_mass[1] = m;
+  @<Solve the System Once@>@;
+
+@ @<Fallback to Bisection@>=
+  if(!(massLowerBound<m && m<massUpperBound)) {
+    std::cout<<"[WARN] Falling back to bisection method"<<std::endl; 
+    m = 0.5*(massLowerBound + massUpperBound);
+    k--;
+  }
+
+@ @<Adjust the bounds if needed@>=
+  if(residual_>TOL && m<massUpperBound) {
+    massUpperBound = m;
+  } else if (residual_<-TOL && m>massLowerBound) {
+    massLowerBound = m;
+  } else if (fabs(residual_)<TOL) {
+    break;
+  }
+
+@ @<Solve the System Once@>=
+     do {
+       try {
+         solveScalarField();
+         break;
+       } catch (MassOutOfBoundsException e) {
+         massUpperBound = m;
+         @<Set the initial condition@>@;
+       }
+     } while(true);
+
+@ @c
+void Solver::run() {
+     shootingMethod();
 }
 
 @ @<Set the initial condition@>=
