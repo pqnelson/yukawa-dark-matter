@@ -153,8 +153,8 @@ $$
 
 \rmk
 When we modify the scalar field to include some nonzero $m_{\phi}$, we
-will either (a) have to modify this routine, or (b) modify the
-|source()| function to incorporate the changes.
+just have to modify the |YukawaDarkMatter::source()| routine to include
+the extra $-m_{\phi}^{2}\phi(r)$ term.
 
 @c void Solver::iterate(index j) {
    if(j<2) return;
