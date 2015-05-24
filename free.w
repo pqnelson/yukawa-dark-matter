@@ -15,10 +15,6 @@ symmetry.
 
 @c
 @<Include ...@>@;
-constexpr auto PI = 3.1415926535897932384626433832795L;
-constexpr auto PI_4 = 0.78539816339744830961566084581988L;
-constexpr auto PI_3 = 1.0471975511965977461542144610932L;
-constexpr auto PI_8 = 0.39269908169872415480783042290994L;
 
 class YukawaDarkMatter {
 private:
@@ -387,29 +383,53 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 
 @ @<Include Header Files@>=
 #include <cmath>
-#include <stdexcept>
 #include <cstdlib>
 #include <iostream>
 
+@<Define Exception...@>@;
+constexpr auto PI = 3.1415926535897932384626433832795L;
+constexpr auto PI_4 = 0.78539816339744830961566084581988L;
+constexpr auto PI_3 = 1.0471975511965977461542144610932L;
+constexpr auto PI_8 = 0.39269908169872415480783042290994L;
+constexpr auto FOUR_PI = 12.566370614359172953850573533118L;
+constexpr auto SQRT_FOUR_PI = 3.5449077018110320545963349666823L;
+typedef long double real;
+typedef std::size_t index;
+real convertAlphaToCoupling(real alpha) { return SQRT_FOUR_PI*sqrt(alpha); }
+real SQ(real x) { return x*x; }
+real CUBE(real x) { return x*x*x; }
+
+@ {\bf Exceptions.}
+We have several different exceptions we need to define. One is if we
+ever violate the bounds for the mass $0\leq m(r) \leq m_{\chi}$. This
+should indicate we need start with a smaller initial guess $m_{0}$.
+
+The other exception we must worry about is if we ever divide by
+zero in |YukawaDarkMatter::source()| method, if
+somehow $m(r)=0$. This {\it shouldn't} happen, and even if it did\dots
+we'd start over since we violated the mass bound.
+
+@<Define Exception Classes@>=
+#include <stdexcept>
 class MassOutOfBoundsException : public std::logic_error {
 public:
         using std::logic_error::logic_error;
 };
-typedef long double real;
-typedef std::size_t index;
-real SQ(real x) { return x*x; }
-real CUBE(real x) { return x*x*x; }
 
-@ {\bf The main method.}
-Now for the {\it pi\`ece de r\'esistance}: the |main()| method! For now,
-I'll just examine certain test cases.
+
+@ {\bf Test Cases.}
+We have three test cases prepared, which correspond to the $\alpha=0.1$
+and constant Fermi momentum scenario. The results correspond to the
+charts in the cited arXiv paper to within 7 digits. We may arbitrarily
+extend the method to full machine precision, but unless we can narrow
+the bounds of the initial guess\dots it will be slow if we demand
+greater precision.
 
 @c
-const auto FOUR_PI = 12.566370614359172953850573533118L;
 YukawaDarkMatter* TestA() {
     real massChi = 100.0;
     real R = 0.620;
-    real g = sqrt(FOUR_PI*0.1);
+    real g = convertAlphaToCoupling(0.1);
     real N = 1e3;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
@@ -417,7 +437,7 @@ YukawaDarkMatter* TestA() {
 YukawaDarkMatter* TestB() {
     real massChi = 100.0;
     real R = 0.160;
-    real g = sqrt(FOUR_PI*0.1);
+    real g = convertAlphaToCoupling(0.1);
     real N = sqrt(1e3);
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
@@ -425,14 +445,19 @@ YukawaDarkMatter* TestB() {
 YukawaDarkMatter* TestC() {
     real massChi = 100.0;
     real R = 12.60;
-    real g = sqrt(FOUR_PI*0.1);
+    real g = convertAlphaToCoupling(0.1);
     real N = 1e5;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
 }
 
+@ {\bf The main method.}
+Now for the {\it pi\`ece de r\'esistance}: the |main()| method! For now,
+I'll just examine certain test cases.
+
+@c
 int main() {
-    YukawaDarkMatter *model = TestC();
+    YukawaDarkMatter *model = TestB();
     Solver *solver = new Solver(model, 1000000);
     solver->run();
     real *m = solver->getMass();

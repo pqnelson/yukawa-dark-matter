@@ -27,8 +27,6 @@ private:
         real *m_mass;
         index length;
         void iterate(index j);
-        void trickyIterate(index j);
-        void rungeKuttaIterate(index j);
         void solveScalarField();
 public:
         Solver(YukawaDarkMatter *m, index l): model(m), m_mass(new
@@ -46,7 +44,6 @@ public:
 $$
 {{-f(x+2h)+4f(x+h)-3f(x)}\over{2h}}=f'(x) - {{4h^{2}}\over{3!}}f'''(x) + \bigO{h^{3}}.
 $$
-{\it In particular, this will be useful to approximate $m'(r-h)$.}
 \callthis\rhsDerivative
 
 \proof
@@ -71,6 +68,20 @@ We can get an approximation of order $\bigO{h^{4}}$ if we subtract out
 $f'''(x)$ instead of $f''(x)$, then use the equations of motion for
 $f''(x)$. As a first pass, we will not use this approach here.
 
+\rmk
+In practice, this doesn't work too well. It seems there's a problem I
+cannot quite identify, and I'm unwilling to waste time figuring it
+out. I'll put this on the back burner, maybe come back to it.
+
+@ {\bf Lemma.}
+{\it We have the approximation}
+$$
+{{f(x)-f(x-h)}\over h}=f'(x-h) + {h\over 2}f''(x-h)+\bigO{h^{2}}
+$$
+
+\proof
+Immediate from the Taylor expansion for $f(x)$ about $x-h$.\quad\slug
+
 @ {\bf Lemma.}
 {\it We have the approximation}
 $$
@@ -89,70 +100,55 @@ to swap this out for a different approximation.
 We can combine these lemmas to produce an approximation
 $$
 {{m(r+h)-m(r-h)}\over{2h}} = {(r-h)^{2}\over{r^{2}}}\left(
-{{-m(r+h)+4m(r)-3m(r-h)}\over{2h}}
+{{m(r)-m(r-h)}\over{h}}
 \right)
 + {c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
 $$
 or equivalently
 $$
-{m(r+h)-m(r-h)} = {(r-h)^{2}\over{r^{2}}}\left(
-{-m(r+h)+4m(r)-3m(r-h)}
+{m(r+h)-m(r-h)} = 2{(r-h)^{2}\over{r^{2}}}\left(
+{m(r)-m(r-h)}
 \right)
 + 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
 $$
 Rearranging terms, we see
 $$
-\left[1+{(r-h)^{2}\over{r^{2}}}\right]m(r+h)
-= 4{(r-h)^{2}\over{r^{2}}}m(r)
-+\left[1-3{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'
-$$
-and thus
-$$
 m(r+h)
-= {{(r-h)^{2}}\over{r^{2}+(r-h)^{2}}}4 m(r)
-+{{r^{2}}\over{r^{2}+(r-h)^{2}}}\left[1-3{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ 2h{c_{0}\over{r^{2}+(r-h)^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
+= 2{(r-h)^{2}\over{r^{2}}}m(r)
++\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
++ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
 $$
 We are left with trying to approximate the integral expression before we
 can rest.
 
 @ {\bf Approximating the Integral.}
-We see the truncation error, so far, is quadratic in $h$ (this is
-because the left hand side's approximation of $m'(r)$ has
-$h^{2}m'''(r)$ as the truncation error---c.f., \S\lhsDerivative). We
-already have the coefficient of the integral term involve a factor of
-$h/r^{2}$, modulo some arbitrary constant. But iteratively,
-$r=r_{n}=nh$. So the coefficient is $h/r^{2}\sim\bigO{h^{-1}}$. We need
-an approximation that is at least cubic in $h$ for the truncation
-error.
-
-The trapezoid rule is one such approximation:
+We approximate the integral using Simpson's rule:
 $$
 \int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'=
-{h\over2}\bigl((r-h)^{2}\sigma(r-h) + r^{2}\sigma(r)\bigr) - {h^{3}\over{12}}\left(2\sigma(\xi)+4\xi\sigma'(\xi)+\xi^{2}\sigma''(\xi)\right)
+{h\over6}\bigl((r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
+r^{2}\sigma(r)\bigr)
+ - \left.{h^{4}\over{2880}}
+    {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}
 $$
 for some $\xi\in(r-h,r)$.
-
-\rmk
-For a higher order approximation, we may have to use Simpson's rule and
-possibly some sort of Taylor expansion of $m(r - h/2)$ about $m(r-h)$ or
-$m(r)$.
 
 @ {\bf Iterative Procedure.}
 We can combine the previous steps to conclude
 $$
 m(r+h)
-= {{(r-h)^{2}}\over{r^{2}+(r-h)^{2}}}4 m(r)
-+{{r^{2}}\over{r^{2}+(r-h)^{2}}}\left[1-3{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ {h^{2}c_{0}\bigl((r-h)^{2}\sigma(r-h) + r^{2}\sigma(r)\bigr)\over{r^{2}+(r-h)^{2}}}.
+= 2{(r-h)^{2}\over{r^{2}}}m(r)
++\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
++ h{c_{0}\over{r^{2}}}{h\over3}\bigl((r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
+r^{2}\sigma(r)\bigr).
 $$
 Or, writing $r_{n}=nh$, and $m_{n}=m(r_{n})$, we get
 $$
 m_{n+1}
-= {{r_{n-1}^{2}}\over{r_{n}^{2}+r_{n-1}^{2}}}4 m_{n}
-+{{r_{n}^{2}}\over{r_{n}^{2}+r_{n-1}^{2}}}\left[1-3{r_{n-1}^{2}\over{r_{n}^{2}}}\right]m_{n-1}
-+ {h^{2}c_{0}\bigl(r_{n-1}^{2}\sigma(r_{n-1}) + r_{n}^{2}\sigma(r_{n})\bigr)\over{r_{n}^{2}+r_{n-1}^{2}}}.
+= {{r_{n-1}^{2}}\over{r_{n}^{2}}}2 m_{n}
++\left(1-2{{r_{n-1}^{2}}\over{r_{n}^{2}}}\right)m_{n-1}
++ h{c_{0}\over{r_{n}^{2}}}{h\over3}\bigl(r_{n-1}^{2}\sigma(r_{n-1})
+ + \left({{r_{n} + r_{n-1}}\over 2}\right)^2\sigma\left({{r_{n} + r_{n-1}}\over 2}\right)
++ r_{n}^{2}\sigma(r_{n})\bigr).
 $$
 
 \rmk
@@ -162,47 +158,26 @@ will either (a) have to modify this routine, or (b) modify the
 
 @c void Solver::iterate(index j) {
    if(j<2) return;
-   return rungeKuttaIterate(j);
-}
-
-void Solver::rungeKuttaIterate(index j) {
    real h = dx();
    real r = (j-1)*h;
    real rSq = SQ(r);
    real rPrime = (j-2)*h;
    real rPrimeSq = SQ(rPrime);
-   real u = rPrime/r; // 1.0 - (2.0/j) + SQ(1.0/j);
-   real c = 1.0*SQ(model->coupling())/(PI*PI*rSq);
+   real u = rPrime/r; 
+   real c = SQ(model->coupling()/(r*PI)); // *rSq
 
-   real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2]; // centered difference
-
+   real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
    // Simpson's rule for quadrature
    real k[3];
-   k[0] = h*rPrimeSq*(model->source(m_mass[j-2], rPrime));
+   k[0] = rPrimeSq*(model->source(m_mass[j-2], rPrime));
    real m = 0.5*(m_mass[j-2] + m_mass[j-1]);
    u = 0.5*(r + rPrime);
-   k[1] = 4.0*h*SQ(u)*(model->source(m, u));
-   k[2] = h*rSq*(model->source(m_mass[j-1], r));
+   k[1] = SQ(u)*(model->source(m, u));
+   k[2] = rSq*(model->source(m_mass[j-1], r));
 
-   m_mass[j] = massTerms + h*(k[0]+k[1]+k[2])*c/6.0;
-}
+   real integral = (h/6.0)*(k[0] + 4.0*k[1] + k[2]);
 
-void Solver::trickyIterate(index j) {
-   real h = dx();
-   real r = (j-1)*h;
-   real rSq = SQ(r);
-   real rPrime = (j-2)*h;
-   real rPrimeSq = SQ(rPrime);
-   real u =rSq + rPrimeSq;
-   real g = model->coupling();
-   
-   real massTerms = (rPrimeSq/u)*4.0*m_mass[j-1];
-   massTerms += (rSq/u)*(1.0-3.0*SQ(rPrime/r))*m_mass[j-2];
-
-   real sourceTerms = h*rSq*(model->source(m_mass[j-1], r));
-   
-   real c = 2.0*SQ(g)/PI;   
-   m_mass[j] = massTerms + (c*h*sourceTerms/u);
+   m_mass[j] = massTerms + c*h*integral;
 }
 
 @ {\bf Solving the mass differential equation.}
@@ -228,7 +203,7 @@ void Solver::run() {
      real massLowerBound = 0.0;
      real massUpperBound = model->fermionMass();
      real m, res;
-     for(index j=0; j<30+(int)(log2(model->fermionMass())+0.5); j++) {
+     for(index j=0; j<30+(index)(log2(model->fermionMass())+0.5); j++) {
        @<Set the initial condition@>@;
        try {
          solveScalarField();
@@ -257,34 +232,14 @@ which indicates ``how far off'' we are.
 
 @c
 real Solver::residual() {
-  real residual;
-  real coef = (model->coupling()/SQ(PI));
   real h = dx();
-  real u = SQ(h);
   real dr;
   real field[3];
-  residual+=SQ(0.5*(m_mass[2]-4*m_mass[1]+3*m_mass[0])/u);
-  for(index j=1; j<length-2; j++) {
-    field[0] = model->massToField(m_mass[j-1]);
-    field[1] = model->massToField(m_mass[j]);
-    field[2] = model->massToField(m_mass[j+1]);
-    real laplacian = (field[0]-2.0*field[1]+field[2])/u;
-    dr = laplacian - coef*CUBE(m_mass[j])*Util::i((model->fermiMomentum(j*h))/fabs(m_mass[j]));
-    if (isnan(dr)) {
-      std::cout<<j<<std::endl;
-    } else {
-      residual += SQ(dr);
-    }
-  }
   field[0] = model->massToField(m_mass[length-3]);
   field[1] = model->massToField(m_mass[length-2]);
   field[2] = model->massToField(m_mass[length-1]);      
   real derivativeOnSurface = (0.5*(field[0]-4.0*field[1]+3.0*field[2])/h);
-  dr = derivativeOnSurface + (field[2]/(model->nuggetSize()));
+  dr = derivativeOnSurface - model->surfaceBoundaryCondition(field[2]);
   std::cout<<"Surface boundary condition gives: "<<dr<<std::endl;
   return dr;
-  residual +=SQ(dr);
-  residual = sqrt(residual);
-  std::cout<<"Residual: "<<residual<<std::endl;
-  return residual;
 }  
