@@ -227,6 +227,34 @@ void Solver::bisectionMethod() {
      }
 }
 
+@ {\bf Initial Guess.}
+We can do some approximations to speed things up by improving the
+initial guess. We can measure empirically the initial guess $m_{0}$
+which solves various test cases, then extrapolate out some power
+law. When the Fermi momentum is constant, we find the following
+situation for $\alpha=0.1$:
+$$
+m_{0}(N=10^{3})=2.21073,\quad{\rm and}\quad m_{0}(N=10^{3/2})=72.2797.
+$$
+We guess a power law behavior $m_{0}(N) = c_{N}N^{b}$. We find
+$$
+b = {2\over 3}\log_{10}\left({{2.21073}\over{72.2797}}\right)=-1.00965.
+$$
+Hence $m_{0}\sim N^{-1}$, and $C_{N}\approx 2210$.
+
+We can also figure out the same behaviour for
+$m_{0}$'s dependence on the coupling $\alpha=4\pi g_{\chi}^{2}$. We find
+empirically:
+$$
+m_{0}(\alpha=0.1,N=10^{3})=2.21073,\quad{\rm and}\quad
+m_{0}(\alpha=0.01,N=10^{3})=72.7375.
+$$
+We again suppose $m_{0}(\alpha)=c_{\alpha}\alpha^{b'}$. We find
+$$
+b' = -\log_{10}\left({{72.7375}\over{2.21073}}\right)\approx-1.51722.
+$$
+So we find $m_{0}\sim\alpha^{-3/2}$. We find $c_{\alpha}\approx 0.07$.
+
 @ {\bf Shooting Method.}
 We now iteratively determine the solution. The method so far is
 incredibly naive, readjusting the initial position based on the sign of
@@ -253,7 +281,7 @@ void Solver::shootingMethod() {
   const real TOL = 1e-7;
   real massLowerBound = 0.0;
   real massUpperBound = model->fermionMass();
-  real m, residual_;
+  real m = 0.0, residual_ =0.0;
   real masses[2];
   real res[2];
   int k=0;
@@ -288,7 +316,11 @@ void Solver::shootingMethod() {
   m_mass[1] = m;
   @<Solve the System Once@>@;
 
-@ @<Fallback to Bisection@>=
+@ If something catastrophic happens, and our linear extrapolation takes
+us to somewhere {\it worse} than our previous guesses, we should just
+resort to the bisection method.
+
+@<Fallback to Bisection@>=
   if(!(massLowerBound<m && m<massUpperBound)) {
     std::cout<<"[WARN] Falling back to bisection method"<<std::endl; 
     m = 0.5*(massLowerBound + massUpperBound);
@@ -321,7 +353,11 @@ void Solver::run() {
 }
 
 @ @<Set the initial condition@>=
-  m = 0.5*(massUpperBound + massLowerBound);
+  if(m>0.0) {
+    m = 0.5*(massUpperBound + massLowerBound);
+  } else {
+    m = 1.0;
+  }
   m_mass[0] = m;
   m_mass[1] = m;
 

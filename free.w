@@ -432,17 +432,17 @@ greater precision.
 @c
 YukawaDarkMatter* TestA() {
     real massChi = 100.0;
-    real R = 0.620;
+    real R = 0.160;
     real g = convertAlphaToCoupling(0.1);
-    real N = 1e3;
+    real N = sqrt(1e3);
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
 }
 YukawaDarkMatter* TestB() {
     real massChi = 100.0;
-    real R = 0.160;
+    real R = 0.620;
     real g = convertAlphaToCoupling(0.1);
-    real N = sqrt(1e3);
+    real N = 1e3;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
 }
@@ -454,6 +454,14 @@ YukawaDarkMatter* TestC() {
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
     return model;
 }
+YukawaDarkMatter* TestD() {
+    real massChi = 100.0;
+    real R = 0.516;
+    real g = convertAlphaToCoupling(0.01);
+    real N = 1e3;
+    YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
+    return model;
+}
 
 @ {\bf The main method.}
 Now for the {\it pi\`ece de r\'esistance}: the |main()| method! For now,
@@ -461,7 +469,7 @@ I'll just examine certain test cases.
 
 @c
 int main() {
-    YukawaDarkMatter *model = TestC();
+    YukawaDarkMatter *model = TestD();
     Solver *solver = new Solver(model, 1000000);
     solver->run();
     real *m = solver->getMass();
