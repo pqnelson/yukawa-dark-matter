@@ -7,10 +7,12 @@
 @s constexpr const
 
 @* Introduction, Review.
-Following \arXiv{1411.1772}, we consider a fermionic field $\chi$
-coupled to a scalar field $\phi$. Initially we consider $\phi$ massless
-and non-self-interacting. For simplicity we assume spherical
-symmetry. 
+Following Mark Wise and Yue Zhang's work in \arXiv{1411.1772}, we
+@^Wise, Mark@>
+@^Zhang, Yue@>
+consider a fermionic field $\chi$ coupled to a scalar field
+$\phi$. Initially we consider $\phi$ massless and
+non-self-interacting. For simplicity we assume spherical symmetry. 
 
 
 @c
@@ -33,15 +35,20 @@ $$
  + {1\over 2}\partial\phi\cdot\partial\phi.\eqn{}
 $$
 We assume $g_{\chi}>0$.
+@^notation: $g_{\chi}$@>
 This is hard, so instead of considering a fermionic field $\chi$, we
 just consider a finite number $N$ of relativistic particles. 
+@^Fermionic Field@>
 
 The Lagrangian we work with instead is (setting $\partial_{t}\phi=0$ and
 working in mostly-minuses convention)
+@^Steady-State Approximation@>
 $$
 L = -\sum_{i}m(\vec{x}_{i})\sqrt{1-\dot{\vec{x}}_{i}^{2}}-{1\over2}\int\nabla\phi\nabla\phi\,{\rm d}^{3}x.\eqn{}
 $$\labelEqn\defnLagrangian
 We have introduced the so-called ``scale-invariant mass''
+@^notation: $m(r)$@>
+@^Scale-Invariant Mass@>
 $$
 m(\vec{x}_{i}) = m_{\chi} + g_{\chi}\phi(\vec{x}_{i})\eqn{}
 $$
@@ -158,6 +165,7 @@ $$
 
 @ {\bf Continuum Limit.}
 When $N\gg 1$, we may treat the collection of particles as a continuous
+@^Continuum Limit@>
 ``field'', at least trading the sum over particles for integrals over
 the phase space:
 $$
@@ -165,6 +173,8 @@ $$
 f(\vec{r}, \vec{p}).\eqn{}
 $$
 As always, we assume spherical symmetry. We have the Fermi
+@^Fermi Momentum@>
+@^notation: $p_{F}(r)$@>
 momentum\footnote{${}^{1}$}{I honestly have not found a good reference
 on what the ``Fermi momentum'' {\it is}. As best as I can tell, it's the
 momenta for the ``most energized'' particle state in some configuration
@@ -174,6 +184,8 @@ $$
 f(\vec{r}, \vec{p}) = 2\theta(R-r)\theta(p_{F}(r)-p)\eqn{}
 $$
 where $\theta(-)$ is the Heaviside step function.
+@^Heaviside Step Function@>
+@^notation: $\theta(-)$@>
 
 @ {\bf Number of $\chi$ Particles.}
 We may consider the number of $\chi$ particles as
@@ -181,6 +193,7 @@ $$
 N = \sum_{i}1 = {4\pi\over 3}\int^{R}_{0} p_{F}(r)^{3}r^{2}\,{\rm d}r.\eqn{}
 $$
 This parameter will be fixed, and given by the user.
+@^notation: $N$@>
 
 @ {\bf Energy's Continuum Limit.}
 So, we consider the Hamiltonian (\hamiltonionDefn) and how it changes
@@ -256,6 +269,7 @@ r}{{{\rm d}}\over {{\rm d}r}}\phi(r) =
 $$
 This is great, it's the equation we will be solving, but we have one
 glaring problem: we never specified $p_{F}(r)$.
+@^Continuum Limit@>
 
 @c
 real YukawaDarkMatter::source(real mass, real r) {
@@ -281,6 +295,7 @@ $$
 p_{F}(r) = \left({{9\pi(1+a)(2+3a)(1+3a)N}\over{8}}\right)^{1/3}
 \left(1-{r\over R}\right)^{a}{1\over R}.\eqn{}
 $$
+@^Fermi Momentum@>
 
 @c
 real YukawaDarkMatter::fermiMomentum(real r, real a) {
@@ -327,6 +342,7 @@ $$
 \phi'(R) = -\phi(R)e^{-m_{\phi}^{2}R}\left({1\over R}+m_{\phi}^{2}\right)
 $$
 and for the massless case, we just take $m_{\phi}\to0$.
+@^Boundary condition, surface@>
 
 @c real YukawaDarkMatter::surfaceBoundaryCondition(real phi) {
    real mPhi = SQ(m_scalarMass);
@@ -350,6 +366,7 @@ m'(r)
 $$
 For the free situation $V=0$, we have $m'(r)>0$ and hence does not
 change sign.
+@^Constraint, Positive Mass@>
 \callthis\constrainMassAsPositive
 
 @c

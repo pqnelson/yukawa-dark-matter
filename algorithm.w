@@ -137,6 +137,7 @@ r^{2}\sigma(r)\bigr)
     {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}
 $$
 for some $\xi\in(r-h,r)$.
+@^Simpson's Rule@>
 
 @ {\bf Iterative Procedure.}
 We can combine the previous steps to conclude
@@ -157,33 +158,28 @@ m_{n+1}
 + r_{n}^{2}\sigma(r_{n})\bigr).
 $$
 
-\rmk
-When we modify the scalar field to include some nonzero $m_{\phi}$, we
-just have to modify the |YukawaDarkMatter::source()| routine to include
-the extra $-m_{\phi}^{2}\phi(r)$ term.
-
 @c void Solver::iterate(index j) {
-   if(j<2) return;
-   real h = dx();
-   real r = (j-1)*h;
-   real rSq = SQ(r);
-   real rPrime = (j-2)*h;
-   real rPrimeSq = SQ(rPrime);
-   real u = rPrime/r; 
-   real c = (model->coupling())/rSq;
+  if(j<2) return;
+  real h = dx();
+  real r = (j-1)*h;
+  real rSq = SQ(r);
+  real rPrime = (j-2)*h;
+  real rPrimeSq = SQ(rPrime);
+  real u = rPrime/r; 
+  real c = (model->coupling())/rSq;
 
-   real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
-   // Simpson's rule for quadrature
-   real k[3];
-   k[0] = rPrimeSq*(model->source(m_mass[j-2], rPrime));
-   real m = 0.5*(m_mass[j-2] + m_mass[j-1]);
-   u = 0.5*(r + rPrime);
-   k[1] = SQ(u)*(model->source(m, u));
-   k[2] = rSq*(model->source(m_mass[j-1], r));
+  real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
+  // Simpson's rule for quadrature
+  real k[3];
+  k[0] = rPrimeSq*(model->source(m_mass[j-2], rPrime));
+  real m = 0.5*(m_mass[j-2] + m_mass[j-1]);
+  u = 0.5*(r + rPrime);
+  k[1] = SQ(u)*(model->source(m, u));
+  k[2] = rSq*(model->source(m_mass[j-1], r));
 
-   real integral = (h/6.0)*(k[0] + 4.0*k[1] + k[2]);
+  real integral = (h/6.0)*(k[0] + 4.0*k[1] + k[2]);
 
-   m_mass[j] = massTerms + c*h*integral;
+  m_mass[j] = massTerms + c*h*integral;
 }
 
 @ {\bf Solving the mass differential equation.}
@@ -193,12 +189,12 @@ throw an exception indicating the bad state.
 
 @c
 void Solver::solveScalarField() {
-     for(index j=0; j<length; j++) {
-       iterate(j);
-       if(!model->isValidMass(m_mass[j])) {
-          throw MassOutOfBoundsException("");
-       }
-     }
+  for(index j=0; j<length; j++) {
+    iterate(j);
+    if(!model->isValidMass(m_mass[j])) {
+      throw MassOutOfBoundsException("");
+    }
+  }
 }
 
 
@@ -206,6 +202,7 @@ void Solver::solveScalarField() {
 A far more cautious approach, because look: we know $0\leq m(0)\leq
 m_{\chi}$, so why not just use the bisection method and iteratively
 solve the system 30 times?
+@^Bisection method@>
 
 @c
 void Solver::bisectionMethod() {
@@ -267,6 +264,7 @@ up is to come up with a linear approximation of the residual for the
 first couple iterations, the solve this approximation for the mass which
 would make the residual vanish. So instead of 30 or more iterations,
 it'd boil down to---say---5 or so.
+@^Shooting method@>
 
 If $m_{0}$ produces a residual $\rho_{0}$, and $m_{1}$ produces residual
 $\rho_{1}$, then we have the linear approximation
@@ -386,6 +384,7 @@ A critical component to our analysis is computing the energy for a given
 radius. For the time being, we will just do the simplest thing to
 program: Simpson's rule. We can skip computing the energy density at
 $r=0$ since the integrand includes a factor of $r^{2}$, hence vanishes.
+@^Energy, computing@>
 
 @c
 real Solver::computeEnergy() {
@@ -426,26 +425,34 @@ minimizes the energy (\S\energyContinuumLimit). One approach is to just
 ``walk'' along the values of $R$, and determine when the energy is
 increasing. Then go back to the last place where it was decreasing, and
 walk smaller steps. Keep iterating until you're satisfied.
+@^Nugget Size, determining@>
+
+The short version: it's the secant method with a lot of paranoia built-in.
 
 @c
 void Solver::findNuggetSize() {
-  real h = 0.01;
+  real h = 0.1;
   real hbarC = 0.2; /* in GeV fm */
   real R = 16.0*sqrt(model->fermionNumber())*(hbarC/(model->fermionMass()));
   if (R<h) {
     h = 0.5*R;
   }
   real initialH = h;
-  std::cout<<"Initial guess for R: "<<R<<std::endl;
+  std::cout<<"Initial guess for R: "
+           <<std::setprecision(20)
+           <<R<<std::endl;
   real nextR;
   real dE[2];
   real E[3];
-  for(int j=0; j<10; j++) {
+  for(int j=0; j<20; j++) {
     h = initialH/(j+1.0);
-    for(int k=0; k<2; k++) {
+    for(int k=0; k<3; k++) {
       model->setNuggetSize(R+((k-1)*h));
       run();
       E[k] = computeEnergy();
+      std::cout<<"[INFO] E["<<k<<"] = "
+               <<std::setprecision(20)
+               <<E[k]<<std::endl;
     }
     dE[0] = (E[1]-E[0])/h;
     dE[1] = (E[2]-E[1])/h;
@@ -459,9 +466,22 @@ void Solver::findNuggetSize() {
     } else if (dE[0]<0.0 && dE[1]<0.0) {
       nextR = R + 0.5*h + fabs(derivative/dSqE);
     } else {
+      if (dE[0]>0.0 && dE[1]<0.0) {
+        std::cerr<<"[ERROR] Derivatives have incorrect signs..."<<std::endl;
+      }
       nextR = R;
     }
-    if (fabs(nextR-R)<1e-3 || (dE[0]<0.0 && dE[1]>0.0) || fabs(derivative/E[0])<1e-5) {
+    if (dE[0]<0.0 && dE[1]>0.0) break;
+    std::cout<<std::setprecision(20)
+             <<"[INFO] R = "
+             <<nextR
+             <<std::endl;
+    if (fabs(nextR-R)<1e-4 || fabs(derivative/E[0])<1e-7) {
+      std::cout<<"[INFO]"
+               <<" terminating approximation for R, "
+               <<((fabs(nextR-R)<1e-4) ? "next R too close" : "derivative too small")
+               <<std::endl;
+      R = nextR;
       break;
     }
     R = nextR;
