@@ -28,8 +28,9 @@ void repl() {
   while(!terminate) {
     @<Print User Choices and Get Choice@>@;
     @<Evaluate User Input@>@;
+    delete model;
   }
-  if (model) delete model;
+  delete model;
 }
 
 @ @<Print User Choices and Get Choice@>=
@@ -90,8 +91,8 @@ real getParam(const char* paramName, bool strictlyPositive=false) {
   return val;
 }
 
-YukawaDarkMatter* promptUserForParameters(YukawaDarkMatter *oldValues=nullptr) {
-  if (oldValues != nullptr) {
+YukawaDarkMatter* promptUserForParameters(YukawaDarkMatter *oldValues) {
+  if (oldValues) {
     char reuse;
     std::cout<<"Reuse same parameter values? [Yn] ";
     std::cin.sync();
@@ -128,9 +129,9 @@ index promptUserForLength() {
   return length;
 }
 
-void updateOldParameters(YukawaDarkMatter* oldParameters, YukawaDarkMatter *model) {
-  if (oldParameters) delete oldParameters;
-  oldParameters = model;
+void updateOldParameters(YukawaDarkMatter *oldParameters, YukawaDarkMatter *model) {
+  std::swap(oldParameters, model);
+  if (model) delete model;
 }
 
 void determineNuggetSize(YukawaDarkMatter* oldParameters) {
