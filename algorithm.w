@@ -502,8 +502,8 @@ E(R) = E_{0} + {{\Delta E_{0}}\over{\Delta R_{0}}}(R-R_{0})
 $$
 We take its derivative
 $$
-E'(R) = 
-+{1\over2}(2R-R_{0}-R_{1})\eqn{}
+E'(R) = {{\Delta E_{0}}\over{\Delta R_{0}}}
++{1\over2}{{\Delta^{2}E_{0}}\over{\Delta^{2}R_{0}}}(2R-R_{0}-R_{1})\eqn{}
 $$
 then setting it to zero we find
 $$
