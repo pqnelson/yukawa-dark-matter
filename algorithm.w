@@ -288,6 +288,7 @@ void Solver::shootingMethod() {
   real masses[2];
   real res[2];
   int k=0;
+  int MAX_BISECTION = 30;
   for(int j=0; j<2; j++) {
     @<Set the initial condition@>@;
     @<Solve the System Once@>@;
@@ -321,10 +322,14 @@ void Solver::shootingMethod() {
 
 @ If something catastrophic happens, and our linear extrapolation takes
 us to somewhere {\it worse} than our previous guesses, we should just
-resort to the bisection method.
+resort to the bisection method. We have an upper bound on the number of
+times we can default to bisection, approximately 30 times will give us
+precision to 7 digits or so.
 
 @<Fallback to Bisection@>=
   if(!(massLowerBound<m && m<massUpperBound)) {
+    if (MAX_BISECTION<0) break;
+    MAX_BISECTION--;
     LOG::warn<<"Falling back to bisection method"<<std::endl;
     m = 0.5*(massLowerBound + massUpperBound);
     k--;
