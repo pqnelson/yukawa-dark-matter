@@ -442,16 +442,11 @@ void Solver::findNuggetSize() {
   real E[3];
   for(int j=0; j<10; j++) {
     h = initialH/(j+1.0);
-    model->setNuggetSize(R-h);
-    run();
-    E[0] = computeEnergy();
-    model->setNuggetSize(R);
-    run();
-    E[1] = computeEnergy();
-    model->setNuggetSize(R+h);
-    run();
-    E[2] = computeEnergy();
-      
+    for(int k=0; k<2; k++) {
+      model->setNuggetSize(R+((k-1)*h));
+      run();
+      E[k] = computeEnergy();
+    }
     dE[0] = (E[1]-E[0])/h;
     dE[1] = (E[2]-E[1])/h;
     real dSqE = (dE[1]-dE[0])/h;
@@ -466,22 +461,13 @@ void Solver::findNuggetSize() {
     } else {
       nextR = R;
     }
-    std::cout<<std::setprecision(20)
-             <<"h: "<<h<<"\n"
-             <<"E: "<<E[0]<<"\n"
-             <<"E': "<<E[2]<<"\n"
-             <<"dE: "<<dE[0]<<"\n"
-             <<"dE': "<<dE[1]<<"\n"
-             <<"dSqE: "<<dSqE<<"\n"
-             <<"R guessed: "<<nextR
-             <<std::endl;
     if (fabs(nextR-R)<1e-3 || (dE[0]<0.0 && dE[1]>0.0) || fabs(derivative/E[0])<1e-5) {
-      std::cout<<"After "<<j<<" iterations...";
-      std::cout<<"Terminating with R = "<<R<<std::endl;
       break;
     }
     R = nextR;
   }
+  std::cout<<"[INFO] Setting R = "<<std::precision(20)<<R<<std::endl;
+  model->setNuggetSize(R);
 }
 
 void Solver::naiveFindNuggetSize(real TOL) {
