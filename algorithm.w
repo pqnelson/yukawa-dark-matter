@@ -30,6 +30,7 @@ private:
         void solveScalarField();
         void shootingMethod();
         void bisectionMethod();
+        real computeEnergy();
 public:
         Solver(YukawaDarkMatter *m, index l): model(m), m_mass(new
         real[l]), length(l) {};
@@ -39,6 +40,9 @@ public:
         real* getMass() const { return m_mass; }
         index getLength() const { return length; }
         real dx() const { return (model->nuggetSize())/length; }
+        void dumpEnergy();
+        void naiveFindNuggetSize(real TOL=1e-4);
+        void findNuggetSize();
 };
         
 @ {\bf Lemma.}
@@ -374,6 +378,146 @@ real Solver::residual() {
   field[2] = model->massToField(m_mass[length-1]);      
   real derivativeOnSurface = (0.5*(field[0]-4.0*field[1]+3.0*field[2])/h);
   dr = derivativeOnSurface - model->surfaceBoundaryCondition(field[2]);
-  std::cout<<"Surface boundary condition gives: "<<dr<<std::endl;
   return dr;
 }  
+
+@ {\bf Computing the Energy.}
+A critical component to our analysis is computing the energy for a given
+radius. For the time being, we will just do the simplest thing to
+program: Simpson's rule. We can skip computing the energy density at
+$r=0$ since the integrand includes a factor of $r^{2}$, hence vanishes.
+
+@c
+real Solver::computeEnergy() {
+  real energy = 0.0;
+  real h = dx();
+  for(index j=1; j<(length/2)-1; j++) {
+    energy += 4.0*(model->energyDensity(m_mass[2*j-1], (2*j-1)*h));
+    energy += 2.0*(model->energyDensity(m_mass[2*j], 2*j*h));
+  }
+  energy += 4.0*(model->energyDensity(m_mass[length-2], (length-2)*h));
+  energy += (model->energyDensity(m_mass[length-1], (length-1)*h));
+  return energy*h/6.0;
+}
+
+@ {\bf Dump Energy.}
+This is a simple method that computes the $(R,E)$ --- the nugget size
+$R$, and corresponding energy $E$ --- ranging over $0\leq R\leq 5$
+stepping $\Delta R$.
+
+@c
+void Solver::dumpEnergy() {
+     real E = 0.0;
+     real R, dR, base;
+     real smallestE;
+     dR = 0.05;
+     for(index j=1; j<30; j++) {
+         R = dR*j;
+         model->setNuggetSize(R);
+         run();
+         E = computeEnergy();
+         std::cout<<"E("<<R<<") = "<<E<<std::endl;
+     }
+}
+
+@ {\bf Determining the Nugget Size.}
+This procedure is a bit tricky. We want to find the nugget size which
+minimizes the energy (\S\energyContinuumLimit). One approach is to just
+``walk'' along the values of $R$, and determine when the energy is
+increasing. Then go back to the last place where it was decreasing, and
+walk smaller steps. Keep iterating until you're satisfied.
+
+@c
+void Solver::findNuggetSize() {
+  real h = 0.01;
+  real hbarC = 0.2; /* in GeV fm */
+  real R = 16.0*sqrt(model->fermionNumber())*(hbarC/(model->fermionMass()));
+  if (R<h) {
+    h = 0.5*R;
+  }
+  real initialH = h;
+  std::cout<<"Initial guess for R: "<<R<<std::endl;
+  real nextR;
+  real dE[2];
+  real E[3];
+  for(int j=0; j<10; j++) {
+    h = initialH/(j+1.0);
+    model->setNuggetSize(R-h);
+    run();
+    E[0] = computeEnergy();
+    model->setNuggetSize(R);
+    run();
+    E[1] = computeEnergy();
+    model->setNuggetSize(R+h);
+    run();
+    E[2] = computeEnergy();
+      
+    dE[0] = (E[1]-E[0])/h;
+    dE[1] = (E[2]-E[1])/h;
+    real dSqE = (dE[1]-dE[0])/h;
+    real derivative = 0.5*(dE[0]+dE[1]);
+    if(dE[0]>0.0 && dE[1]>0.0) {
+      nextR = R + 0.5*h - fabs(derivative/dSqE);
+      if (nextR < 0.0) {
+        nextR = 0.5*R;
+      }
+    } else if (dE[0]<0.0 && dE[1]<0.0) {
+      nextR = R + 0.5*h + fabs(derivative/dSqE);
+    } else {
+      nextR = R;
+    }
+    std::cout<<std::setprecision(20)
+             <<"h: "<<h<<"\n"
+             <<"E: "<<E[0]<<"\n"
+             <<"E': "<<E[2]<<"\n"
+             <<"dE: "<<dE[0]<<"\n"
+             <<"dE': "<<dE[1]<<"\n"
+             <<"dSqE: "<<dSqE<<"\n"
+             <<"R guessed: "<<nextR
+             <<std::endl;
+    if (fabs(nextR-R)<1e-3 || (dE[0]<0.0 && dE[1]>0.0) || fabs(derivative/E[0])<1e-5) {
+      std::cout<<"After "<<j<<" iterations...";
+      std::cout<<"Terminating with R = "<<R<<std::endl;
+      break;
+    }
+    R = nextR;
+  }
+}
+
+void Solver::naiveFindNuggetSize(real TOL) {
+     real minR, R, E, ePrime, dE;
+     real dR = 0.25;
+     minR = 0.0;
+     index j;
+     R = dR; 
+     model->setNuggetSize(R);
+     run();
+     E = computeEnergy();
+     minR = R;
+     for(j=1; j<20; j++) {
+       R = minR + dR*j; 
+       model->setNuggetSize(R);
+       run();
+       ePrime = computeEnergy();
+       dE = ePrime-E;
+       E = ePrime;
+       if (dE<0) {
+         minR = R;
+       } else { /* E is increasing */
+         if (minR<2*dR) {
+           minR = 0.5*dR;
+         } else {
+           minR = minR - dR;
+         }
+         dR *= 0.5;
+         if (dR < TOL) {
+           std::cout<<"R is small enough, bailing out with R="<<R<<std::endl;
+           break;
+         }
+         model->setNuggetSize(minR);
+         run();
+         E = computeEnergy();
+         j = 0;
+       }
+   }
+}

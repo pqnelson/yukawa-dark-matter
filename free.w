@@ -21,6 +21,7 @@ private:
         @<Model Parameters@>@;
 public:
         @<Model constructor@>@;
+        @<Mutator Methods@>@;
         @<Accessor Methods@>@;
         @<Routines@>@;
 };
@@ -223,7 +224,7 @@ r^{2}\left[
   V(\phi)+{1\over 2}\phi(r){\partial V(\phi)\over{\partial\phi(r)}}
 \right]{\rm d}r\eqn{}
 $$
-to the total energy function.
+to the total energy function.\callthis\energyContinuumLimit
 
 @c namespace Util {
   real i(real z) {
@@ -237,10 +238,12 @@ to the total energy function.
     return 0.25*(i(z) + z*u*hypot(1.0,z));
   }
 }
-real YukawaDarkMatter::energyDensity(real phi, real r) {
-     real mass = scaleInvariantMass(phi);
+real YukawaDarkMatter::energyDensity(real mass, real r) {
+     real phi = massToField(mass);
      real p = fermiMomentum(r)/fabs(mass);
-     return 4.0*PI_3*SQ(r)*CUBE(mass)*(mass*Util::h(p) - 0.5*coupling()*phi*Util::i(p));
+     real massTerm = SQ(phi*m_scalarMass);
+     real freeTerm = CUBE(mass)*(mass*Util::h(p) - 0.5*coupling()*phi*Util::i(p));
+     return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
 }
 
 @ {\bf Continuum Limit of Equations of Motion.}
@@ -373,9 +376,17 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   real coupling() const { return m_couplingConstant; }
   real fermionNumber() const { return m_fermionNumber; }
 
+@ @<Mutator Methods@>=
+  real setNuggetSize(real R) {
+    if (!(R>0.0)) {
+      throw std::logic_error("R must be positive");
+    }
+    m_nuggetSize = R;
+  }
+
 @ @<Routines@>=
   real fermiMomentum(real r, real a=0.0);
-  real energyDensity(real phi, real r);
+  real energyDensity(real mass, real r);
   bool isValidMass(real mass);
   real surfaceBoundaryCondition(real phi);
   real source(real mass, real r);
@@ -388,6 +399,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 
 @<Define Exception...@>@;
 constexpr auto PI = 3.1415926535897932384626433832795L;
@@ -440,7 +452,7 @@ YukawaDarkMatter* TestA() {
 }
 YukawaDarkMatter* TestB() {
     real massChi = 100.0;
-    real R = 0.620;
+    real R = 0.62308;
     real g = convertAlphaToCoupling(0.1);
     real N = 1e3;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
@@ -448,7 +460,7 @@ YukawaDarkMatter* TestB() {
 }
 YukawaDarkMatter* TestC() {
     real massChi = 100.0;
-    real R = 12.60;
+    real R = 11.8776;
     real g = convertAlphaToCoupling(0.1);
     real N = 1e5;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
@@ -456,7 +468,7 @@ YukawaDarkMatter* TestC() {
 }
 YukawaDarkMatter* TestD() {
     real massChi = 100.0;
-    real R = 0.516;
+    real R = 0.5023;
     real g = convertAlphaToCoupling(0.01);
     real N = 1e3;
     YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
@@ -468,10 +480,7 @@ Now for the {\it pi\`ece de r\'esistance}: the |main()| method! For now,
 I'll just examine certain test cases.
 
 @c
-int main() {
-    YukawaDarkMatter *model = TestD();
-    Solver *solver = new Solver(model, 1000000);
-    solver->run();
+void sampleMasses(Solver *solver) {
     real *m = solver->getMass();
     index length = (solver->getLength());
     int delta = length/10;
@@ -479,6 +488,12 @@ int main() {
       std::cout<<"m["<<(j*(solver->dx())*delta)<<"] = "<<m[j*delta]<<std::endl;
     }
     std::cout<<"m["<<(length*(solver->dx()))<<"] = "<<m[length-1]<<std::endl;
+}
+
+int main() {
+    YukawaDarkMatter *model = TestA();
+    Solver *solver = new Solver(model, 1000000);
+    solver->findNuggetSize();
     return 0;
 }
 
