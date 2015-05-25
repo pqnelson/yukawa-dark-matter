@@ -2,13 +2,14 @@ CPLUSPLUS=g++
 CFLAGS=-Wall -O3 --std=c++11
 LIB=-lm
 TEX=pdftex
+FILE=yukawa
 
 all: bin doc
 source:
-	ctangle free.w - free.cpp
+	ctangle $(FILE).w - $(FILE).cpp
 bin: source
-	$(CPLUSPLUS) $(CFLAGS) free.cpp $(LIB) -o free
+	$(CPLUSPLUS) $(CFLAGS) $(FILE).cpp $(LIB) -o $(FILE)
 tex:
-	cweave free.w
+	cweave $(FILE).w
 doc: tex
-	$(TEX) free.tex
+	$(TEX) $(FILE).tex

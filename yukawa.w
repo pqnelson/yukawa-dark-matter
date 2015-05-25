@@ -6,6 +6,41 @@
 @s index size_t
 @s constexpr const
 
+\def\topofcontents{
+ \null\vskip-35pt
+ \vfill
+ \vfill
+ \centerline{\bf Numerical Simulations of Yukawa-Coupled Dark Matter}
+ \bigskip
+ \centerline{Alex Nelson}
+ \smallskip
+ \vskip 4\bigskipamount
+ \centerline{\vtop{\hsize=.8\hsize
+    \noindent{\bf Abstract.}\quad
+    We numerically investigate and reproduce recent results from Wise and Zhang
+    (\arXiv{1411.1772}). The basic model couples fermionic matter to a
+    massless scalar field. We extend the model to a massive
+    self-interacting scalar field. Furthermore, we also discuss the
+    numerical analysis of the problem in considerable detail. A working
+    program is included.}}
+ \vskip.7in
+ \vfill} % this material will start the table of contents page
+
+% the next lines patch cwebmac so that the contents page comes out first
+\let\oldcon=\con
+\let\con=\bye
+
+\newread\tocfile \openin\tocfile=\contentsfile\relax
+\ifeof\tocfile
+ \message{Please run this file again thru TeX to get the table of contents!}
+\else \pageno=0 \titletrue {\let\end=\relax \oldcon} \fi
+
+\def\lheader{\mainfont\the\pageno\eightrm\qquad\grouptitle\hfill
+  ALEX NELSON\qquad
+  \mainfont\topsecno} % top line on left-hand pages
+\def\rheader{\mainfont\topsecno\eightrm\qquad DARK MATTER\hfill
+  \eightrm\grouptitle\qquad\mainfont\the\pageno} % top line on right-hand pages
+
 @* Introduction, Review.
 Following Mark Wise and Yue Zhang's work in \arXiv{1411.1772}, we
 @^Wise, Mark@>
@@ -288,7 +323,7 @@ p_{F}(r) = \left({{3\pi\Gamma(4+3a)N}\over{8\Gamma(1+3a)}}\right)^{1/3}
 $$
 We will either set $a=0$ or $a=1/2$. Observe
 $$
-{\Gamma(4+3a)\over{\Gamma(1+3a)}}=3(1+a)(2+3a)(1+3a)
+{\Gamma(4+3a)\over{\Gamma(1+3a)}}=3(1+a)(2+3a)(1+3a)\eqn{}
 $$
 hence
 $$
@@ -310,13 +345,13 @@ $$
 \phi'(r) = {1\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
 -{{\partial V}\over{\partial\phi}}
-\right]{\rm d}r'.
+\right]{\rm d}r'.\eqn{}
 $$
 We can see this from
 $$
 {{\rm d}\over{{\rm d}r}}[r^{2}\phi'(r)] = 
 {g_{\chi}\over \pi^{2}}r^{2}m(r)^{3}i\left({{p_{F}(r)}\over\abs{m(r)}}\right)
--r^{2}{{\partial V}\over{\partial\phi}}
+-r^{2}{{\partial V}\over{\partial\phi}}\eqn{}
 $$
 which is precisely the equations of motion multipled by $r^{2}$. This
 first-order ODE remains quite nonlinear.
@@ -329,17 +364,17 @@ $$
 {g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
 -g_{\chi}{{\partial V}\over{\partial m(r)}}
-\right]{\rm d}r'.
+\right]{\rm d}r'.\eqn{}
 $$
 
 @ {\bf Surface Boundary Conditions.}
 For the massive scalar field, the boundary condition may be deduced from
 $$
-\phi(r) = -\phi(R)e^{-m_{\phi}^{2}r}{R\over r}
+\phi(r) = -\phi(R)e^{-m_{\phi}^{2}r}{R\over r}\eqn{}
 $$
 for $r>R$. Thus we find
 $$
-\phi'(R) = -\phi(R)e^{-m_{\phi}^{2}R}\left({1\over R}+m_{\phi}^{2}\right)
+\phi'(R) = -\phi(R)e^{-m_{\phi}^{2}R}\left({1\over R}+m_{\phi}^{2}\right)\eqn{}
 $$
 and for the massless case, we just take $m_{\phi}\to0$.
 @^Boundary condition, surface@>
@@ -353,7 +388,7 @@ and for the massless case, we just take $m_{\phi}\to0$.
 @ {\bf Constraint: Positivity of Mass.}
 We may implement a constraint condition, since
 $$
-m'(r) = g_{\chi}\phi'(r)
+m'(r) = g_{\chi}\phi'(r)\eqn{}
 $$
 we see
 $$
@@ -362,7 +397,7 @@ m'(r)
 {g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
 -{{\partial V}\over{\partial\phi}}
-\right]{\rm d}r'.
+\right]{\rm d}r'.\eqn{}
 $$
 For the free situation $V=0$, we have $m'(r)>0$ and hence does not
 change sign.
@@ -394,7 +429,13 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   real fermionNumber() const { return m_fermionNumber; }
 
 @ @<Mutator Methods@>=
-  real setNuggetSize(real R) {
+  void setFermionNumber(real N) {
+    if (!(N>0.0)) {
+      throw std::logic_error("N must be positive");
+    }
+    m_fermionNumber = N;
+  }
+  void setNuggetSize(real R) {
     if (!(R>0.0)) {
       throw std::logic_error("R must be positive");
     }
@@ -413,12 +454,18 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 @i algorithm.w
 
 @ @<Include Header Files@>=
+#include <functional> /* for |std::function| template */
+#include <string>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 
+#define VERSION "0.1 Beta"
+
 @<Define Exception...@>@;
+constexpr auto hbarC = 0.2; /* in GeV fm */
 constexpr auto PI = 3.1415926535897932384626433832795L;
 constexpr auto PI_4 = 0.78539816339744830961566084581988L;
 constexpr auto PI_3 = 1.0471975511965977461542144610932L;
@@ -446,51 +493,53 @@ we'd start over since we violated the mass bound.
 #include <stdexcept>
 class MassOutOfBoundsException : public std::logic_error {
 public:
-        using std::logic_error::logic_error;
+  using std::logic_error::logic_error;
 };
 
 
-@ {\bf Test Cases.}
+@* Test Cases.
 We have three test cases prepared, which correspond to the $\alpha=0.1$
 and constant Fermi momentum scenario. The results correspond to the
-charts in the cited arXiv paper to within 7 digits. We may arbitrarily
+charts in the cited \.{arXiv} paper to within 7 digits. We may arbitrarily
 extend the method to full machine precision, but unless we can narrow
 the bounds of the initial guess\dots it will be slow if we demand
 greater precision.
 
 @c
 YukawaDarkMatter* TestA() {
-    real massChi = 100.0;
-    real R = 0.160;
-    real g = convertAlphaToCoupling(0.1);
-    real N = sqrt(1e3);
-    YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
-    return model;
+  real massChi = 100.0;
+  real R = 0.160;
+  real g = convertAlphaToCoupling(0.1);
+  real N = sqrt(1e3);
+  YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
+  return model;
 }
 YukawaDarkMatter* TestB() {
-    real massChi = 100.0;
-    real R = 0.62308;
-    real g = convertAlphaToCoupling(0.1);
-    real N = 1e3;
-    YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
-    return model;
+  real massChi = 100.0;
+  real R = 0.62308;
+  real g = convertAlphaToCoupling(0.1);
+  real N = 1e3;
+  YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
+  return model;
 }
 YukawaDarkMatter* TestC() {
-    real massChi = 100.0;
-    real R = 11.8776;
-    real g = convertAlphaToCoupling(0.1);
-    real N = 1e5;
-    YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
-    return model;
+  real massChi = 100.0;
+  real R = 11.8776;
+  real g = convertAlphaToCoupling(0.1);
+  real N = 1e5;
+  YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
+  return model;
 }
 YukawaDarkMatter* TestD() {
-    real massChi = 100.0;
-    real R = 0.5023;
-    real g = convertAlphaToCoupling(0.01);
-    real N = 1e3;
-    YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
-    return model;
+  real massChi = 100.0;
+  real R = 0.5023;
+  real g = convertAlphaToCoupling(0.01);
+  real N = 1e3;
+  YukawaDarkMatter *model = new YukawaDarkMatter(massChi, R, g, N);
+  return model;
 }
+
+@i user.w
 
 @ {\bf The main method.}
 Now for the {\it pi\`ece de r\'esistance}: the |main()| method! For now,
@@ -498,20 +547,36 @@ I'll just examine certain test cases.
 
 @c
 void sampleMasses(Solver *solver) {
-    real *m = solver->getMass();
-    index length = (solver->getLength());
-    int delta = length/10;
-    for(int j = 0; j<10; j++) {
-      std::cout<<"m["<<(j*(solver->dx())*delta)<<"] = "<<m[j*delta]<<std::endl;
-    }
-    std::cout<<"m["<<(length*(solver->dx()))<<"] = "<<m[length-1]<<std::endl;
+  real *m = solver->getMass();
+  index length = (solver->getLength());
+  int delta = length/10;
+  for(int j = 0; j<10; j++) {
+    std::cout<<"m["<<(j*(solver->dx())*delta)<<"] = "<<m[j*delta]<<std::endl;
+  }
+  std::cout<<"m["<<(length*(solver->dx()))<<"] = "<<m[length-1]<<std::endl;
+}
+
+void printVersionInfo() {
+  std::cout<<"Welcome to the Yukawa Solver, v."<<VERSION<<std::endl;
+}
+
+void warnAboutSelfInteraction() {
+  std::cout<<"This version handles massive scalar fields, but not self-interacting"<<std::endl;
+  std::cout<<"scalar fields yet."<<std::endl;
+}
+
+void printStartupMessage() {
+  std::cout<<std::endl;
+  printVersionInfo();
+  std::cout<<std::endl;
+  warnAboutSelfInteraction();
+  std::cout<<std::endl;
 }
 
 int main() {
-    YukawaDarkMatter *model = TestA();
-    Solver *solver = new Solver(model, 1000000);
-    solver->findNuggetSize();
-    return 0;
+  printStartupMessage();
+  repl();
+  return 0;
 }
 
 @* Index.

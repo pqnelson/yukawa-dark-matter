@@ -9,13 +9,13 @@ How will this work? If we just use something simple like Euler's method,
 we still have to compute a rather unpleasant integral. The trick is to
 observe from
 $$
-m'(r) = {c_{0}\over{r^{2}}}\int^{r}_{0}(r')^{2}\sigma(r')\,{\rm d}r'
+m'(r) = {c_{0}\over{r^{2}}}\int^{r}_{0}(r')^{2}\sigma(r')\,{\rm d}r'\eqn{}
 $$
 where $\sigma(r)$ is the ``source function'' (i.e., right hand side of
 the scalar field equations) we have
 $$
 m'(r) = {(r-h)^{2}\over{r^{2}}}m'(r-h) +
-{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
+{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 We will translate this into a recursive algorithm involving $m_{n+1}$,
 $m_{n}$, and $m_{n-1}$. First we must prove a few lemmas.
@@ -30,11 +30,10 @@ private:
         void solveScalarField();
         void shootingMethod();
         void bisectionMethod();
-        real computeEnergy();
 public:
         Solver(YukawaDarkMatter *m, index l): model(m), m_mass(new
         real[l]), length(l) {};
-        ~Solver() { delete model; delete m_mass; }
+        ~Solver() { delete m_mass; }
         void run();
         real residual();
         real* getMass() const { return m_mass; }
@@ -43,12 +42,13 @@ public:
         void dumpEnergy();
         void naiveFindNuggetSize(real TOL=1e-4);
         void findNuggetSize();
+        real computeEnergy();
 };
-        
+
 @ {\bf Lemma.}
 {\it We have one approximation of the derivative}
 $$
-{{-f(x+2h)+4f(x+h)-3f(x)}\over{2h}}=f'(x) - {{4h^{2}}\over{3!}}f'''(x) + \bigO{h^{3}}.
+{{-f(x+2h)+4f(x+h)-3f(x)}\over{2h}}=f'(x) - {{4h^{2}}\over{3!}}f'''(x) + \bigO{h^{3}}.\eqn{}
 $$
 \callthis\rhsDerivative
 
@@ -56,16 +56,16 @@ $$
 We first find the Taylor expansion of $f(x+2h)$ as
 $$
 f(x+2h) = f(x) + 2hf'(x) + {4h^{2}\over{2!}}f''(x) + {8h^{3}\over{3!}}f'''(x)
-+\bigO{h^{4}}
++\bigO{h^{4}}\eqn{}
 $$
 and likewise for $f(x+h)$ we get
 $$
 f(x+h) = f(x) + hf'(x) + {h^{2}\over{2!}}f''(x) + {h^{3}\over{3!}}f'''(x)
-+\bigO{h^{4}}.
++\bigO{h^{4}}.\eqn{}
 $$
 Then subtracting gives us
 $$
-f(x+2h)-4f(x+h) = -3f(x)-2hf'(x)+{4h^{3}\over{3!}}f'''(x)+\bigO{h^{4}}.
+f(x+2h)-4f(x+h) = -3f(x)-2hf'(x)+{4h^{3}\over{3!}}f'''(x)+\bigO{h^{4}}.\eqn{}
 $$
 We can then produce the result immediately.\quad\slug
 
@@ -82,7 +82,7 @@ out. I'll put this on the back burner, maybe come back to it.
 @ {\bf Lemma.}
 {\it We have the approximation}
 $$
-{{f(x)-f(x-h)}\over h}=f'(x-h) + {h\over 2}f''(x-h)+\bigO{h^{2}}
+{{f(x)-f(x-h)}\over h}=f'(x-h) + {h\over 2}f''(x-h)+\bigO{h^{2}}\eqn{}
 $$
 
 \proof
@@ -91,7 +91,7 @@ Immediate from the Taylor expansion for $f(x)$ about $x-h$.\quad\slug
 @ {\bf Lemma.}
 {\it We have the approximation}
 $$
-{{f(x+h)-f(x-h)}\over{2h}}=f'(x) + {h^{2}\over3}f'''(x)+\bigO{h^{3}}.
+{{f(x+h)-f(x-h)}\over{2h}}=f'(x) + {h^{2}\over3}f'''(x)+\bigO{h^{3}}.\eqn{}
 $$
 {\it This will be used to approximate $m'(r)$.}
 \callthis\lhsDerivative
@@ -108,21 +108,21 @@ $$
 {{m(r+h)-m(r-h)}\over{2h}} = {(r-h)^{2}\over{r^{2}}}\left(
 {{m(r)-m(r-h)}\over{h}}
 \right)
-+ {c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
++ {c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 or equivalently
 $$
 {m(r+h)-m(r-h)} = 2{(r-h)^{2}\over{r^{2}}}\left(
 {m(r)-m(r-h)}
 \right)
-+ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
++ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 Rearranging terms, we see
 $$
 m(r+h)
 = 2{(r-h)^{2}\over{r^{2}}}m(r)
 +\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.
++ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 We are left with trying to approximate the integral expression before we
 can rest.
@@ -134,28 +134,29 @@ $$
 {h\over6}\bigl((r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
 r^{2}\sigma(r)\bigr)
  - \left.{h^{4}\over{2880}}
-    {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}
+    {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}\eqn{}
 $$
 for some $\xi\in(r-h,r)$.
 @^Simpson's Rule@>
 
-@ {\bf Iterative Procedure.}
+@* Iterative Procedure.
 We can combine the previous steps to conclude
 $$
-m(r+h)
-= 2{(r-h)^{2}\over{r^{2}}}m(r)
-+\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ h{c_{0}\over{r^{2}}}{h\over3}\bigl((r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
-r^{2}\sigma(r)\bigr).
+\eqalign{m(r+h)
+=& 2{(r-h)^{2}\over{r^{2}}}m(r)
++\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)\cr
+&+ {c_{0}h^{2}\over{3\cdot r^{2}}}\left[(r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
+r^{2}\sigma(r)\right].\cr}\eqn{}
 $$
 Or, writing $r_{n}=nh$, and $m_{n}=m(r_{n})$, we get
 $$
+\eqalign{
 m_{n+1}
-= {{r_{n-1}^{2}}\over{r_{n}^{2}}}2 m_{n}
-+\left(1-2{{r_{n-1}^{2}}\over{r_{n}^{2}}}\right)m_{n-1}
-+ h{c_{0}\over{r_{n}^{2}}}{h\over3}\bigl(r_{n-1}^{2}\sigma(r_{n-1})
- + \left({{r_{n} + r_{n-1}}\over 2}\right)^2\sigma\left({{r_{n} + r_{n-1}}\over 2}\right)
-+ r_{n}^{2}\sigma(r_{n})\bigr).
+=& {{r_{n-1}^{2}}\over{r_{n}^{2}}}2 m_{n}
++\left(1-2{{r_{n-1}^{2}}\over{r_{n}^{2}}}\right)m_{n-1}\cr
+&+ {c_{0}h^{2}\over{3\cdot r^{2}}}\left[r_{n-1}^{2}\sigma(r_{n-1})
++ \left({{r_{n} + r_{n-1}}\over 2}\right)^2\sigma\left({{r_{n} + r_{n-1}}\over 2}\right)
++ r_{n}^{2}\sigma(r_{n})\right].}\eqn{}
 $$
 
 @c void Solver::iterate(index j) {
@@ -235,11 +236,11 @@ which solves various test cases, then extrapolate out some power
 law. When the Fermi momentum is constant, we find the following
 situation for $\alpha=0.1$:
 $$
-m_{0}(N=10^{3})=2.21073,\quad{\rm and}\quad m_{0}(N=10^{3/2})=72.2797.
+m_{0}(N=10^{3})=2.21073,\quad{\rm and}\quad m_{0}(N=10^{3/2})=72.2797.\eqn{}
 $$
 We guess a power law behavior $m_{0}(N) = c_{N}N^{b}$. We find
 $$
-b = {2\over 3}\log_{10}\left({{2.21073}\over{72.2797}}\right)=-1.00965.
+b = {2\over 3}\log_{10}\left({{2.21073}\over{72.2797}}\right)=-1.00965.\eqn{}
 $$
 Hence $m_{0}\sim N^{-1}$, and $C_{N}\approx 2210$.
 
@@ -248,15 +249,15 @@ $m_{0}$'s dependence on the coupling $\alpha=4\pi g_{\chi}^{2}$. We find
 empirically:
 $$
 m_{0}(\alpha=0.1,N=10^{3})=2.21073,\quad{\rm and}\quad
-m_{0}(\alpha=0.01,N=10^{3})=72.7375.
+m_{0}(\alpha=0.01,N=10^{3})=72.7375.\eqn{}
 $$
 We again suppose $m_{0}(\alpha)=c_{\alpha}\alpha^{b'}$. We find
 $$
-b' = -\log_{10}\left({{72.7375}\over{2.21073}}\right)\approx-1.51722.
+b' = -\log_{10}\left({{72.7375}\over{2.21073}}\right)\approx-1.51722.\eqn{}
 $$
 So we find $m_{0}\sim\alpha^{-3/2}$. We find $c_{\alpha}\approx 0.07$.
 
-@ {\bf Shooting Method.}
+@* Shooting Method.
 We now iteratively determine the solution. The method so far is
 incredibly naive, readjusting the initial position based on the sign of
 the residual of the surface boundary condition. One method to speed this
@@ -269,12 +270,12 @@ it'd boil down to---say---5 or so.
 If $m_{0}$ produces a residual $\rho_{0}$, and $m_{1}$ produces residual
 $\rho_{1}$, then we have the linear approximation
 $$
-\rho(m) = \rho_{0} + \left({{\rho_{1}-\rho_{0}}\over{m_{1}-m_{0}}}\right)(m-m_{0}).
+\rho(m) = \rho_{0} + \left({{\rho_{1}-\rho_{0}}\over{m_{1}-m_{0}}}\right)(m-m_{0}).\eqn{}
 $$
 We want to find the $m$ such that $\rho(m)=0$. We find, by basic
 algebra, that
 $$
-m=m_{0}-\rho_{0}\left({{m_{1}-m_{0}}\over{\rho_{1}-\rho_{0}}}\right).
+m=m_{0}-\rho_{0}\left({{m_{1}-m_{0}}\over{\rho_{1}-\rho_{0}}}\right).\eqn{}
 $$
 This gives us a way to find the solution faster (in theory).
 
@@ -379,7 +380,7 @@ real Solver::residual() {
   return dr;
 }  
 
-@ {\bf Computing the Energy.}
+@* Computing the Energy.
 A critical component to our analysis is computing the energy for a given
 radius. For the time being, we will just do the simplest thing to
 program: Simpson's rule. We can skip computing the energy density at
@@ -407,11 +408,9 @@ stepping $\Delta R$.
 @c
 void Solver::dumpEnergy() {
      real E = 0.0;
-     real R, dR, base;
-     real smallestE;
-     dR = 0.05;
+     real dR = 0.05;
      for(index j=1; j<30; j++) {
-         R = dR*j;
+         real R = dR*j;
          model->setNuggetSize(R);
          run();
          E = computeEnergy();
@@ -419,7 +418,7 @@ void Solver::dumpEnergy() {
      }
 }
 
-@ {\bf Determining the Nugget Size.}
+@* Determining the Nugget Size.
 This procedure is a bit tricky. We want to find the nugget size which
 minimizes the energy (\S\energyContinuumLimit). One approach is to just
 ``walk'' along the values of $R$, and determine when the energy is
@@ -432,7 +431,35 @@ The short version: it's the secant method with a lot of paranoia built-in.
 @c
 void Solver::findNuggetSize() {
   real h = 0.1;
-  real hbarC = 0.2; /* in GeV fm */
+  @<Initial Guess for Nugget Size@>@;
+  real nextR;
+  real dE[2];
+  real E[3];
+  for(int j=0; j<20; j++) {
+    h = initialH/(j+1.0);
+    @<Sample Local Energy@>@;
+    @<Compute Radial Derivatives of Energy@>@;
+    @<Determine Next Guess for Nugget Size@>@;
+    if (dE[0]<0.0 && dE[1]>0.0) {
+      break;
+    }
+    std::cout<<std::setprecision(20)
+             <<"[INFO] R = "
+             <<nextR
+             <<std::endl;
+    @<Terminate Nugget Iterative Loop if Good Enough@>@;
+    R = nextR;
+  }
+  std::cout<<"[INFO] Setting R = "<<std::setprecision(20)<<R<<std::endl;
+  model->setNuggetSize(R);
+}
+
+@ We know that $R\sim 1/m_{\chi}$, but after a few numerical experiments
+I found that $R\approx 16\sqrt{N}\hbar c/m_{\chi}$ is a decent
+approximation.
+\callthis\initialGuessForNuggetSize
+
+@<Initial Guess for Nugget Size@>=
   real R = 16.0*sqrt(model->fermionNumber())*(hbarC/(model->fermionMass()));
   if (R<h) {
     h = 0.5*R;
@@ -441,11 +468,8 @@ void Solver::findNuggetSize() {
   std::cout<<"Initial guess for R: "
            <<std::setprecision(20)
            <<R<<std::endl;
-  real nextR;
-  real dE[2];
-  real E[3];
-  for(int j=0; j<20; j++) {
-    h = initialH/(j+1.0);
+
+@ @<Sample Local Energy@>=
     for(int k=0; k<3; k++) {
       model->setNuggetSize(R+((k-1)*h));
       run();
@@ -454,10 +478,36 @@ void Solver::findNuggetSize() {
                <<std::setprecision(20)
                <<E[k]<<std::endl;
     }
+
+@ We approximate the radial derivatives |dE| by using the forward
+difference. We take their average to get the centered difference and
+store that as |derivative|.
+
+@<Compute Radial Derivatives of Energy@>=
     dE[0] = (E[1]-E[0])/h;
     dE[1] = (E[2]-E[1])/h;
     real dSqE = (dE[1]-dE[0])/h;
     real derivative = 0.5*(dE[0]+dE[1]);
+    
+@ Based on whether the change in energy is increasing or decreasing, we
+adjust our guesses accordingly. We use the local finite differences to
+construct a quadratic polynomial
+$$
+E(R) = E_{0} + {{\Delta E_{0}}\over{\Delta R_{0}}}(R-R_{0})
++{1\over2}{{\Delta^{2}E_{0}}\over{\Delta^{2}R_{0}}}(R-R_{0})(R-R_{1})\eqn{}
+$$
+We take its derivative
+$$
+E'(R) = 
++{1\over2}(2R-R_{0}-R_{1})\eqn{}
+$$
+then setting it to zero we find
+$$
+R={R_{0}+R_{1}\over2}-\left({{\Delta^{2}E_{0}}\over{\Delta^{2}R_{0}}}\right)^{-1}{{\Delta E_{0}}\over{\Delta R_{0}}}.\eqn{}
+$$
+This is how we determine our next guess.
+
+@<Determine Next Guess for Nugget Size@>=
     if(dE[0]>0.0 && dE[1]>0.0) {
       nextR = R + 0.5*h - fabs(derivative/dSqE);
       if (nextR < 0.0) {
@@ -471,11 +521,8 @@ void Solver::findNuggetSize() {
       }
       nextR = R;
     }
-    if (dE[0]<0.0 && dE[1]>0.0) break;
-    std::cout<<std::setprecision(20)
-             <<"[INFO] R = "
-             <<nextR
-             <<std::endl;
+
+@ @<Terminate Nugget Iterative Loop if Good Enough@>=
     if (fabs(nextR-R)<1e-4 || fabs(derivative/E[0])<1e-7) {
       std::cout<<"[INFO]"
                <<" terminating approximation for R, "
@@ -484,12 +531,14 @@ void Solver::findNuggetSize() {
       R = nextR;
       break;
     }
-    R = nextR;
-  }
-  std::cout<<"[INFO] Setting R = "<<std::setprecision(20)<<R<<std::endl;
-  model->setNuggetSize(R);
-}
 
+@ {\bf Naive Method for Determining Nugget Size.}
+This is a deprecated method for finding the nugget size. Basically,
+``walk'' out at some step size $\Delta R$ until the energy starts
+increasing. Then go back to where it was decreasing, and start walking
+with a smaller step size
+
+@c
 void Solver::naiveFindNuggetSize(real TOL) {
      real minR, R, E, ePrime, dE;
      real dR = 0.25;
