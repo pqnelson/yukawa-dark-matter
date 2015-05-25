@@ -461,6 +461,8 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#define VERBOSITY FATAL
+#include "log.h"
 
 #define VERSION "0.1 Beta"
 

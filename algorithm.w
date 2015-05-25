@@ -325,7 +325,7 @@ resort to the bisection method.
 
 @<Fallback to Bisection@>=
   if(!(massLowerBound<m && m<massUpperBound)) {
-    std::cout<<"[WARN] Falling back to bisection method"<<std::endl; 
+    LOG::warn<<"Falling back to bisection method"<<std::endl;
     m = 0.5*(massLowerBound + massUpperBound);
     k--;
   }
@@ -443,14 +443,13 @@ void Solver::findNuggetSize() {
     if (dE[0]<0.0 && dE[1]>0.0) {
       break;
     }
-    std::cout<<std::setprecision(20)
-             <<"[INFO] R = "
-             <<nextR
-             <<std::endl;
+    LOG::info<<std::setprecision(20)
+             <<"R = "
+             <<nextR<<std::endl;
     @<Terminate Nugget Iterative Loop if Good Enough@>@;
     R = nextR;
   }
-  std::cout<<"[INFO] Setting R = "<<std::setprecision(20)<<R<<std::endl;
+  LOG::info<<"Setting R = "<<std::setprecision(20)<<R<<std::endl;
   model->setNuggetSize(R);
 }
 
@@ -465,16 +464,16 @@ approximation.
     h = 0.5*R;
   }
   real initialH = h;
-  std::cout<<"Initial guess for R: "
-           <<std::setprecision(20)
-           <<R<<std::endl;
+  LOG::trace<<"Initial guess for R: "
+            <<std::setprecision(20)
+            <<R<<std::endl;
 
 @ @<Sample Local Energy@>=
     for(int k=0; k<3; k++) {
       model->setNuggetSize(R+((k-1)*h));
       run();
       E[k] = computeEnergy();
-      std::cout<<"[INFO] E["<<k<<"] = "
+      LOG::info<<"E["<<k<<"] = "
                <<std::setprecision(20)
                <<E[k]<<std::endl;
     }
@@ -517,17 +516,15 @@ This is how we determine our next guess.
       nextR = R + 0.5*h + fabs(derivative/dSqE);
     } else {
       if (dE[0]>0.0 && dE[1]<0.0) {
-        std::cerr<<"[ERROR] Derivatives have incorrect signs..."<<std::endl;
+        LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
       }
       nextR = R;
     }
 
 @ @<Terminate Nugget Iterative Loop if Good Enough@>=
     if (fabs(nextR-R)<1e-4 || fabs(derivative/E[0])<1e-7) {
-      std::cout<<"[INFO]"
-               <<" terminating approximation for R, "
-               <<((fabs(nextR-R)<1e-4) ? "next R too close" : "derivative too small")
-               <<std::endl;
+      LOG::info<<" terminating approximation for R, "
+               <<((fabs(nextR-R)<1e-4) ? "next R too close" : "derivative too small")<<std::endl;
       R = nextR;
       break;
     }
@@ -566,7 +563,7 @@ void Solver::naiveFindNuggetSize(real TOL) {
          }
          dR *= 0.5;
          if (dR < TOL) {
-           std::cout<<"R is small enough, bailing out with R="<<R<<std::endl;
+           LOG::info<<"R is small enough, bailing out with R="<<R<<std::endl;
            break;
          }
          model->setNuggetSize(minR);
