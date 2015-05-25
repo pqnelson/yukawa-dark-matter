@@ -466,7 +466,7 @@ void Solver::findNuggetSize() {
     }
     R = nextR;
   }
-  std::cout<<"[INFO] Setting R = "<<std::precision(20)<<R<<std::endl;
+  std::cout<<"[INFO] Setting R = "<<std::setprecision(20)<<R<<std::endl;
   model->setNuggetSize(R);
 }
 
