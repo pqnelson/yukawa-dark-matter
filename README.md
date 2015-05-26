@@ -15,6 +15,9 @@ manual, simply type `make doc` in the console. To compile the program to
 run, `make bin` will compile the code. If you type `make` or `make all`,
 it will compile the executable *and* produce the documentation.
 
+**NOTE:** This work *extends* Zhang and Wise's work, in that we can
+consider a scalar field with a nonzero mass.
+
 # Algorithm
 
 The basic algorithm can easily be generalized to ODEs with Neumann
