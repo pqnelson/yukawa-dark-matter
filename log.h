@@ -30,6 +30,24 @@
 #define VERBOSITY INFO
 #endif
 
+
+#include <string>
+#include <stdio.h>
+#include <time.h>
+
+// Get current time, format is HH:mm:ss
+const std::string currentTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[10];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+    // for more information about date/time format
+    strftime(buf, sizeof(buf), "%X", &tstruct);
+
+    return buf;
+}
+
 /**
  * A very simple way to maintain the syntax of std::cout and still have the possibility to enable/disable logging
  * information.
@@ -46,12 +64,12 @@ namespace LOG {
 
 	static ofstream devnull("/dev/null");
 
-#define trace cout << "[" << __TIME__ << "] TRACE: " 
-#define debug cout << "[" << __TIME__ << "] DEBUG: " 
-#define info cout << "[" << __TIME__ << "] INFO: "
-#define warn cout << "[" << __TIME__ << "] WARN: "
-#define error cerr << "[" << __TIME__ << "] ERROR: "
-#define fatal cerr << "[" << __TIME__ << "] FATAL: "
+#define trace cout << "[" << currentTime() << "] TRACE: " 
+#define debug cout << "[" << currentTime() << "] DEBUG: " 
+#define info cout << "[" << currentTime() << "] INFO: "
+#define warn cout << "[" << currentTime() << "] WARN: "
+#define error cerr << "[" << currentTime() << "] ERROR: "
+#define fatal cerr << "[" << currentTime() << "] FATAL: "
 
 #if VERBOSITY < TRACE
 #undef trace
