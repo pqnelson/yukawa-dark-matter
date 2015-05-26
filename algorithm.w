@@ -499,6 +499,7 @@ approximation.
 
 @ @<Sample Local Energy@>=
     for(int k=0; k<3; k++) {
+      if (R<h) h = 0.25*R;
       model->setNuggetSize(R+((k-1)*h));
       run();
       E[k] = computeEnergy();
@@ -537,12 +538,12 @@ This is how we determine our next guess.
 
 @<Determine Next Guess for Nugget Size@>=
     if(dE[0]>0.0 && dE[1]>0.0) {
-      nextR = R + 0.5*h - fabs(derivative/dSqE);
+      nextR = R - 0.5*h - fabs(derivative/dSqE);
       if (nextR < 0.0) {
         nextR = 0.5*R;
       }
     } else if (dE[0]<0.0 && dE[1]<0.0) {
-      nextR = R + 0.5*h + fabs(derivative/dSqE);
+      nextR = R - 0.5*h + fabs(derivative/dSqE);
     } else {
       if (dE[0]>0.0 && dE[1]<0.0) {
         LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
