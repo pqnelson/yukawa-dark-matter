@@ -26,8 +26,12 @@ void repl() {
   bool terminate = false;
   YukawaDarkMatter* model = nullptr;
   while(!terminate) {
-    @<Print User Choices and Get Choice@>@;
-    @<Evaluate User Input@>@;
+    try {
+      @<Print User Choices and Get Choice@>@;
+      @<Evaluate User Input@>@;
+    } catch (NoSolutionExistsException e) {
+      std::cerr<<"Error: no such solution exists!"<<std::endl;
+    }
     delete model;
   }
   delete model;
@@ -101,14 +105,15 @@ YukawaDarkMatter* promptUserForParameters(YukawaDarkMatter *oldValues) {
       return oldValues;
     }
   }
-  real massChi, alpha, fermionNumber, scalarMass;
+  real massChi, alpha, fermionNumber, scalarMass, a;
   massChi = getParam("fermion mass (m_{chi}) in GeV", true);
   std::cout<<"Enter the alpha value: "; 
   std::cin>>alpha;
   fermionNumber = getParam("fermion number (N)", true);
   scalarMass = getParam("scalar mass (m_{phi}) in GeV");
   real R = 16.0*sqrt(fermionNumber)*(hbarC/massChi);
-  YukawaDarkMatter* model = new YukawaDarkMatter(massChi, R, convertAlphaToCoupling(alpha), fermionNumber, scalarMass);
+  a = getParam("momentum parameter (a)");
+  YukawaDarkMatter* model = new YukawaDarkMatter(massChi, R, convertAlphaToCoupling(alpha), fermionNumber, scalarMass, a);
   return model;
 }
 
@@ -173,12 +178,16 @@ void plotEffectiveMass(YukawaDarkMatter *oldParameters) {
   std::cout<<"What file would you like to print the data?"<<std::endl;
   std::cin>>filename;
   data.open(filename);
+  data<<"# fermion mass = "<<(model->fermionMass())
+      <<", alpha = "<<4.0*PI*SQ(model->coupling())
+      <<", N = "<<(model->fermionNumber())<<"\n";
 
 @ @<Print Solution to File@>=
   index MAX_ITER = 50;
   real dx = (model->nuggetSize())/(1.0*MAX_ITER);
   index step = (solver->getLength())/MAX_ITER;
   real *solution = solver->getMass();
+  data<<"# First index block (index 0)\n";
   data<<"# r    m(r)\n";
   data<<"0.0"<<"    "<<(solution[0])<<"\n";
   for(index j=1; j<MAX_ITER; j++) {
@@ -187,7 +196,9 @@ void plotEffectiveMass(YukawaDarkMatter *oldParameters) {
   data<<(model->nuggetSize())<<"    "<<(solution[(solver->getLength())-1])<<"\n";
 
 @ @<Print Momentum to File@>=
-  data<<"\n\n\n# r    p(r)\n";
+  data<<"\n\n\n";
+  data<<"# Second index block (index 1)\n";
+  data<<"# r    p(r)\n";
   data<<"0.0"<<"    "<<(model->fermiMomentum(0.0))<<"\n";
   real r;
   for(index j=1; j<MAX_ITER; j++) {

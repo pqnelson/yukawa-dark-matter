@@ -333,9 +333,9 @@ $$
 @^Fermi Momentum@>
 
 @c
-real YukawaDarkMatter::fermiMomentum(real r, real a) {
-  if (r >= m_nuggetSize) return 0.0; /* avoid complex numbers! */
-  return cbrt(9.0*PI_8*m_fermionNumber*(1.0+a)*(2.0+3.0*a)*(1.0+3.0*a))*pow(1.0-(r/m_nuggetSize),a)/m_nuggetSize;
+real YukawaDarkMatter::fermiMomentum(real r) {
+  if (r > m_nuggetSize) return 0.0; /* avoid complex numbers! */
+  return cbrt(9.0*PI_8*m_fermionNumber*(1.0+m_a)*(2.0+3.0*m_a)*(1.0+3.0*m_a))*pow(1.0-(r/m_nuggetSize),m_a)/m_nuggetSize;
 }
 
 @ {\bf First-Order Equations of Motion.}
@@ -411,15 +411,16 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 
 @ @<Model Param...@>=
         real m_fermionMass, m_nuggetSize, m_couplingConstant, m_fermionNumber;
-        real m_scalarMass;
+        real m_scalarMass, m_a;
 @ @<Model constructor@>=
   YukawaDarkMatter(real massChi, real R, real coupling, real
-        fermionNumber, real scalarMass=0.0): 
+        fermionNumber, real scalarMass=0.0, real a=0.0): 
   m_fermionMass(massChi), 
   m_nuggetSize(R),
   m_couplingConstant(coupling),
   m_fermionNumber(fermionNumber),
-  m_scalarMass(scalarMass)
+  m_scalarMass(scalarMass),
+  m_a(a)
    {}
 
 @ @<Accessor Methods@>=
@@ -441,9 +442,12 @@ bool YukawaDarkMatter::isValidMass(real mass) {
     }
     m_nuggetSize = R;
   }
+  void setMomentumParameter(real a) {
+    m_a = a;
+  }
 
 @ @<Routines@>=
-  real fermiMomentum(real r, real a=0.0);
+  real fermiMomentum(real r);
   real energyDensity(real mass, real r);
   bool isValidMass(real mass);
   real surfaceBoundaryCondition(real phi);
@@ -454,6 +458,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 @i algorithm.w
 
 @ @<Include Header Files@>=
+#include <limits>
 #include <functional> /* for |std::function| template */
 #include <string>
 #include <cmath>
@@ -461,7 +466,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#define VERBOSITY FATAL
+#define VERBOSITY TRACE
 #include "log.h"
 
 #define VERSION "0.1 Beta"
@@ -498,6 +503,10 @@ public:
   using std::logic_error::logic_error;
 };
 
+class NoSolutionExistsException : public std::runtime_error {
+public:
+  using std::runtime_error::runtime_error;
+};
 
 @* Test Cases.
 We have three test cases prepared, which correspond to the $\alpha=0.1$

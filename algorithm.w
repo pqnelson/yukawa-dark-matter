@@ -302,18 +302,23 @@ void Solver::shootingMethod() {
   }
   for(k=0; k<10; k++) {
     @<Solve System with Extrapolated...@>@;
-    @<Update the Residual and Masses@>@;
+    @<Update the Guess from the Residual and Masses@>@;
   }
 }
 
-@ @<Update the Residual and Masses@>=
+@ @<Update the Guess from the Residual and Masses@>=
+  LOG::trace<<"Updating the initial condition guess from the residual"<<std::endl;
   masses[0] = masses[1];
   res[0] = res[1];
   masses[1] = m;
   residual_ = res[1] = residual();
   @<Adjust the bounds if needed@>@;
 
-@ @<Solve System with Extrapolated Mass@>=
+@ Use the secant method to approximate the next guess for the initial
+condition.
+
+@<Solve System with Extrapolated Mass@>=
+  LOG::trace<<"Solving the system with the new initial condition"<<std::endl;
   m = masses[0] - res[0]*((masses[1]-masses[0])/(res[1]-res[0]));
   @<Fallback to Bisection@>@;
   m_mass[0] = m;
@@ -336,6 +341,7 @@ precision to 7 digits or so.
   }
 
 @ @<Adjust the bounds if needed@>=
+  LOG::trace<<"Checking to see if we need to adjust the bounds on the guess for the initial condition"<<std::endl;
   if(residual_>TOL && m<massUpperBound) {
     massUpperBound = m;
   } else if (residual_<-TOL && m>massLowerBound) {
@@ -345,27 +351,36 @@ precision to 7 digits or so.
   }
 
 @ @<Solve the System Once@>=
-     do {
-       try {
-         solveScalarField();
-         break;
-       } catch (MassOutOfBoundsException e) {
-         massUpperBound = m;
-         @<Set the initial condition@>@;
-       }
-     } while(true);
+  LOG::trace<<"Iteratively solving the system (slow)..."<<std::endl;
+  do {
+    try {
+      solveScalarField();
+      break;
+    } catch (MassOutOfBoundsException e) {
+      LOG::info<<"Guessed too high (Out of bounds exception caught)"<<std::endl;
+      massUpperBound = m;
+      @<Set the initial condition@>@;
+    }
+  } while(true);
+  LOG::trace<<"Solution found!"<<std::endl;
 
 @ @c
 void Solver::run() {
-     shootingMethod();
+  LOG::trace<<"Solver::run() called..."<<std::endl;
+  shootingMethod();
+  LOG::trace<<"Solver::run() terminating..."<<std::endl;
 }
 
 @ @<Set the initial condition@>=
   if(m>0.0) {
     m = 0.5*(massUpperBound + massLowerBound);
+    if (m < std::numeric_limits<double>::epsilon()) {
+      throw NoSolutionExistsException("");
+    }
   } else {
     m = 1.0;
   }
+  LOG::info<<"Guessing again with m = "<<m<<std::endl;
   m_mass[0] = m;
   m_mass[1] = m;
 
@@ -435,27 +450,36 @@ The short version: it's the secant method with a lot of paranoia built-in.
 
 @c
 void Solver::findNuggetSize() {
+  LOG::trace<<"Solver::findNuggetSize() called..."<<std::endl;
   real h = 0.1;
   @<Initial Guess for Nugget Size@>@;
   real nextR;
   real dE[2];
   real E[3];
   for(int j=0; j<20; j++) {
-    h = initialH/(j+1.0);
-    @<Sample Local Energy@>@;
-    @<Compute Radial Derivatives of Energy@>@;
-    @<Determine Next Guess for Nugget Size@>@;
-    if (dE[0]<0.0 && dE[1]>0.0) {
-      break;
+    try {
+      h = initialH/(j+1.0);
+      @<Sample Local Energy@>@;
+      @<Compute Radial Derivatives of Energy@>@;
+      @<Determine Next Guess for Nugget Size@>@;
+      if (dE[0]<0.0 && dE[1]>0.0) {
+        break;
+      }
+      LOG::info<<std::setprecision(20)
+               <<"R = "
+               <<nextR<<std::endl;
+      @<Terminate Nugget Iterative Loop if Good Enough@>@;
+      R = nextR;
+    } catch (NoSolutionExistsException e) {
+      R *= 0.50;
+      LOG::info<<"No such solution exists, guessing again with R = "
+               <<R<<std::endl;
+      j--;
     }
-    LOG::info<<std::setprecision(20)
-             <<"R = "
-             <<nextR<<std::endl;
-    @<Terminate Nugget Iterative Loop if Good Enough@>@;
-    R = nextR;
   }
   LOG::info<<"Setting R = "<<std::setprecision(20)<<R<<std::endl;
   model->setNuggetSize(R);
+  LOG::trace<<"Solver::findNuggetSize() terminating..."<<std::endl;
 }
 
 @ We know that $R\sim 1/m_{\chi}$, but after a few numerical experiments
