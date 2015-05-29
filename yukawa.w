@@ -5,6 +5,7 @@
 @s real double
 @s index size_t
 @s constexpr const
+@s NoSolutionExistsException exception
 
 \def\topofcontents{
  \null\vskip-35pt
@@ -20,7 +21,7 @@
     We numerically investigate and reproduce recent results from Wise and Zhang
     (\arXiv{1411.1772}). The basic model couples fermionic matter to a
     massless scalar field. We extend the model to a massive
-    self-interacting scalar field. Furthermore, we also discuss the
+    scalar field. Furthermore, we also discuss the
     numerical analysis of the problem in considerable detail. A working
     program is included.}}
  \vskip.7in
@@ -274,6 +275,25 @@ r^{2}\left[
 $$
 to the total energy function.\callthis\energyContinuumLimit
 
+\proclaim Theorem. For large $z$, 
+$$i(z)\approx {z^{2}\over 2}+ {1\over 4}(1-\ln(4)-2\ln(z))+\bigO{z^{-2}}$$
+and 
+$$h(z)\approx {{1-2\ln(4)-4\ln(z)}\over{32}}+{z^{2}\over 4}+{z^{4}\over 4}+\bigO{z^{-2}}.$$
+
+\rmk
+We will use this theorem when $0<m(r)<1/10$, and hence
+$\infty>1/m(r)>10$. How good of an approximation is this? Well, we find
+$$
+\int^{1/10}_{0}\norm{h(w^{-1})-h_{{\rm approx}}(w^{-1})}^{2}\,{\rm
+d}w\approx 1.94\cdot10^{-9}
+$$
+and likewise
+$$
+\int^{1/10}_{0}\norm{i(w^{-1})-i_{{\rm approx}}(w^{-1})}^{2}\,{\rm
+d}w\approx 6.989653\cdot10^{-8}.
+$$
+
+
 @c namespace Util {
   real i(real z) {
        return 0.5*(z*sqrt(1.0+z*z) - asinh(z));
@@ -286,12 +306,24 @@ to the total energy function.\callthis\energyContinuumLimit
     return 0.25*(i(z) + z*u*hypot(1.0,z));
   }
 }
+const real LN_4 = 1.3862943611198906188344642429164L;
 real YukawaDarkMatter::energyDensity(real mass, real r) {
-     real phi = massToField(mass);
-     real p = fermiMomentum(r)/fabs(mass);
-     real massTerm = SQ(phi*m_scalarMass);
-     real freeTerm = CUBE(mass)*(mass*Util::h(p) - 0.5*coupling()*phi*Util::i(p));
-     return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
+  real phi = massToField(mass);
+  real massTerm, freeTerm;
+  massTerm = SQ(phi*m_scalarMass);
+  if (fabs(mass)<0.1) {
+    real p = fermiMomentum(r);
+    real logP = log(p);
+    real logM = log(mass);
+    real hTerm = 0.25*pow(p,4.0)+SQ(mass)*(0.25*SQ(p)+0.03125*SQ(mass)*(1.0-2.0*LN_4-4.0*logP+4.0*logM));
+    real iTerm = mass*(0.5*SQ(p)+0.25*(1.0-LN_4-2.0*logP+2.0*logM));
+    freeTerm = (hTerm - 0.5*coupling()*iTerm*phi);
+    return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
+  } else {
+    real p = fermiMomentum(r)/fabs(mass);
+    freeTerm = CUBE(mass)*(mass*Util::h(p) - 0.5*coupling()*phi*Util::i(p));
+    return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
+  }
 }
 
 @ {\bf Continuum Limit of Equations of Motion.}
@@ -306,11 +338,25 @@ This is great, it's the equation we will be solving, but we have one
 glaring problem: we never specified $p_{F}(r)$.
 @^Continuum Limit@>
 
+\rmk
+Again, we use the approximation when $m(r)<1/10$ that
+$i(p_{F}(r)/\abs{m(r)})$ is approximately cubic plus some logarithmic
+terms. We did this once before with the energy density (\S\energyContinuumLimit).
+
 @c
 real YukawaDarkMatter::source(real mass, real r) {
-     real massTerm = m_scalarMass*massToField(mass);
-     real fermionContribution = (coupling()/PI_SQ)*CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
-     return fermionContribution-massTerm;
+  real massTerm = m_scalarMass*massToField(mass);
+  real iTerm;
+  if (fabs(mass)<0.1) {
+    real p = fermiMomentum(r);
+    real logP = log(p);
+    real logM = log(mass);
+    iTerm = mass*(0.5*SQ(p)+0.25*(1.0-LN_4-2.0*logP+2.0*logM));
+  } else {
+    iTerm = CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
+  }
+  real fermionContribution = (coupling()/PI_SQ)*iTerm;
+  return fermionContribution-massTerm;
 }
 
 @ {\bf Momentum Ansatz.}
@@ -370,17 +416,17 @@ $$
 @ {\bf Surface Boundary Conditions.}
 For the massive scalar field, the boundary condition may be deduced from
 $$
-\phi(r) = -\phi(R)e^{-m_{\phi}^{2}r}{R\over r}\eqn{}
+\phi(r) = -\phi(R)e^{-m_{\phi}r}{R\over r}\eqn{}
 $$
 for $r>R$. Thus we find
 $$
-\phi'(R) = -\phi(R)e^{-m_{\phi}^{2}R}\left({1\over R}+m_{\phi}^{2}\right)\eqn{}
+\phi'(R) = -\phi(R)e^{-m_{\phi}R}\left({1\over R}+m_{\phi}\right)\eqn{}
 $$
 and for the massless case, we just take $m_{\phi}\to0$.
 @^Boundary condition, surface@>
 
 @c real YukawaDarkMatter::surfaceBoundaryCondition(real phi) {
-   real mPhi = SQ(m_scalarMass);
+   real mPhi = m_scalarMass;
    real R = m_nuggetSize;
    return -phi*exp(-mPhi*R)*(mPhi + (1.0/R));
 }
@@ -466,7 +512,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#define VERBOSITY TRACE
+#define VERBOSITY FATAL
 #include "log.h"
 
 #define VERSION "0.1 Beta"
@@ -589,5 +635,22 @@ int main() {
   repl();
   return 0;
 }
+
+@* References.
+
+\newdimen\refindent \refindent=27pt
+\def\ref[#1] {\smallskip\noindent\hangindent\refindent
+  \hbox to\refindent{\hfill[#1]\enspace}}
+
+\ref[\Fr] Marco Frasca, ``Exact solutions of classical scalar field
+equations''. {\sl J.Nonlin.Math.Phys.} {\bf 18} (2011)
+291--297,\arXiv{0907.4053}. Discusses exact solution for $\phi^{4}$
+classically. 
+@^Frasca, Marco@>
+
+\ref[\WZ] Mark Wise and Yue Zhang, ``Yukawa Bound States of a Large
+Number of Fermions''. {\sl JHEP} {\bf 1502} no.2 (2015) 23, \arXiv{1411.1772}.
+@^Wise, Mark@>
+@^Zhang, Yue@>
 
 @* Index.
