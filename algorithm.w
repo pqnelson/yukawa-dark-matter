@@ -209,7 +209,7 @@ solve the system 30 times?
 void Solver::bisectionMethod() {
      real massLowerBound = 0.0;
      real massUpperBound = model->fermionMass();
-     real m, res;
+     real m = 0.1*massUpperBound, res;
      for(index j=0; j<30+(index)(log2(model->fermionMass())+0.5); j++) {
        @<Set the initial condition@>@;
        try {
