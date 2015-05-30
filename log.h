@@ -93,13 +93,13 @@ namespace LOG {
   using namespace std;
 
   static ofstream devnull("/dev/null");
-  int verb(0);
-  oprefixstream trace(makePrefixer("TRACE"), std::cout);
-  oprefixstream debug(makePrefixer("DEBUG"), std::cout);
-  oprefixstream info(makePrefixer("INFO"), std::cout);
-  oprefixstream warn(makePrefixer("WARN"), std::cout);
-  oprefixstream error(makePrefixer("ERROR"), std::cerr);
-  oprefixstream fatal(makePrefixer("FATAL"), std::cerr);
+  int verb(-1);
+oprefixstream trace(makePrefixer("TRACE"), devnull);
+  oprefixstream debug(makePrefixer("DEBUG"), devnull);
+  oprefixstream info(makePrefixer("INFO"), devnull);
+  oprefixstream warn(makePrefixer("WARN"), devnull);
+  oprefixstream error(makePrefixer("ERROR"), devnull);
+  oprefixstream fatal(makePrefixer("FATAL"), devnull);
 
   void setStream(int verbosity,
                  int threshold,
