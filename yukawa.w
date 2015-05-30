@@ -172,7 +172,7 @@ H = \sum_{i}\sqrt{\vec{p}_{i}^{2}+m(\vec{x}_{i})^{2}}
   {m(\vec{x}_{i})\over{\sqrt{\vec{p}_{i}^{2}+m(\vec{x}_{i})^{2}}}}.\eqn{}
 $$\labelEqn\hamiltonionDefn
 
-@ {\it Remark. Nonzero Scalar Potential Term.}
+@ {\bf Nonzero Scalar Potential Term.}
 If we had some nonzero potential $V(\phi)$ for the scalar field, how
 would we change things? Well, we would have to modify Eq (\defnLagrangian) as
 $$
@@ -199,6 +199,15 @@ H = \sum_{i}\sqrt{\vec{p}_{i}^{2}+m(\vec{x}_{i})^{2}}
 {\rm d}^{3}x.
 \eqno{(\hamiltonionDefn{}')}
 $$
+
+@c 
+real YukawaDarkMatter::scalarPotential(real phi) {
+  return 0.5*SQ(phi*m_scalarMass);
+}
+
+real YukawaDarkMatter::partialScalarPotential(real phi) {
+  return phi*SQ(m_scalarMass);
+}
 
 @ {\bf Continuum Limit.}
 When $N\gg 1$, we may treat the collection of particles as a continuous
@@ -311,7 +320,7 @@ const real LN_4 = 1.3862943611198906188344642429164L;
 real YukawaDarkMatter::energyDensity(real mass, real r) {
   real phi = massToField(mass);
   real massTerm, freeTerm;
-  massTerm = SQ(phi*m_scalarMass);
+  massTerm = scalarPotential(phi)+0.5*phi*partialScalarPotential(phi);
   if (fabs(mass)<0.1) {
     real p = fermiMomentum(r);
     real logP = log(p);
@@ -346,7 +355,6 @@ terms. We did this once before with the energy density (\S\energyContinuumLimit)
 
 @c
 real YukawaDarkMatter::source(real mass, real r) {
-  real massTerm = m_scalarMass*massToField(mass);
   real iTerm;
   if (fabs(mass)<0.1) {
     real p = fermiMomentum(r);
@@ -357,7 +365,7 @@ real YukawaDarkMatter::source(real mass, real r) {
     iTerm = CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
   }
   real fermionContribution = (coupling()/PI_SQ)*iTerm;
-  return fermionContribution-massTerm;
+  return fermionContribution-partialScalarPotential(massToField(mass));
 }
 
 @ {\bf Momentum Ansatz.}
@@ -494,6 +502,8 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   }
 
 @ @<Routines@>=
+  real scalarPotential(real phi);
+  real partialScalarPotential(real phi);
   real fermiMomentum(real r);
   real energyDensity(real mass, real r);
   bool isValidMass(real mass);
@@ -646,7 +656,7 @@ int main() {
 
 \ref[\Fr] Marco Frasca, ``Exact solutions of classical scalar field
 equations''. {\sl J.Nonlin.Math.Phys.} {\bf 18} (2011)
-291--297,\arXiv{0907.4053}. Discusses exact solution for $\phi^{4}$
+291--297, \arXiv{0907.4053}. Discusses exact solution for $\phi^{4}$
 classically. 
 @^Frasca, Marco@>
 
