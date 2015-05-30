@@ -13,7 +13,8 @@
  \vfill
  \centerline{\bf Numerical Simulations of Yukawa-Coupled Dark Matter}
  \bigskip
- \centerline{Alex Nelson}
+ \centerline{Alex Nelson\footnote{${}^{\dagger}$}{\eightrm The latest version of
+ this program may be found at \homepage{}.}}
  \smallskip
  \vskip 4\bigskipamount
  \centerline{\vtop{\hsize=.8\hsize
