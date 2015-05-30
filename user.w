@@ -8,13 +8,15 @@ void plotBindingEnergy(YukawaDarkMatter* oldParameters);
 void plotNuggetSize(YukawaDarkMatter* oldParameters);
 void plotEffectiveMass(YukawaDarkMatter *oldParameters);
 void determineNuggetSize(YukawaDarkMatter* oldParameters);
+void updateVerbosity();
 enum UserInput {
   USER_UNKNOWN = 0,@/
   USER_DETERMINE_NUGGET_SIZE = 1,@/
   USER_ENERGY_VS_FERMION_NUMBER = 2,@/
   USER_RADIUS_VS_FERMION_NUMBER = 3,@/
   USER_PLOT_EFFECTIVE_MASS = 4,@/
-  USER_QUIT = 5
+  USER_VERBOSITY = 5,@/
+  USER_QUIT = 6
 };
 
 @ We begin by asking the user what they'd like to do. This is a simple
@@ -43,7 +45,9 @@ void repl() {
   std::cout<<"(3) Plot Nugget size (R) against Binding Energy"<<std::endl;
   std::cout<<"(4) Plot the scale-invariant mass given the "
            <<"fermion mass and fermion number"<<std::endl;
-  std::cout<<"(5) Quit"<<std::endl;
+  std::cout<<"(5) Change warning level [Currently: "
+           <<LOG::getVerbosity()<<"]"<<std::endl;
+  std::cout<<"(6) Quit"<<std::endl;
   int userChoice;
   std::cin>>userChoice;
 
@@ -60,6 +64,9 @@ void repl() {
     case USER_PLOT_EFFECTIVE_MASS:@#
       plotEffectiveMass(model);
       break;
+    case USER_VERBOSITY:@#
+      updateVerbosity();
+      break;
     case USER_QUIT:@#
       std::cout<<"Goodbye"<<std::endl;
       terminate=true;
@@ -68,6 +75,23 @@ void repl() {
       std::cout<<"Invalid choice, "<<userChoice<<std::endl;
       break;
   }
+
+@ Getting the verbosity is a fairly straightforward thing.
+
+@c
+void updateVerbosity() {
+  std::cout<<"What level of debugging/tracing would you like?\n"
+           <<"(1) Trace\n"
+           <<"(2) Debug\n"
+           <<"(3) Info\n"
+           <<"(4) Warn\n"
+           <<"(5) Error\n"
+           <<"(6) Fatal\n"
+           <<"(7) Quiet"<<std::endl;
+  int verb;
+  std::cin>>verb;
+  LOG::setVerbosity(verb);
+}
 
 @* Getting Parameter Values.
 Any of these requires the user to initialize the model with various
