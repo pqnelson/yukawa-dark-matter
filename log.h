@@ -65,6 +65,9 @@ public:
   virtual void setBuffer(std::streambuf* sb) {
     sbuf = sb;
   }
+  void setShowPrefix(bool flag) {
+    need_prefix = flag;
+  }
 };
 
 class oprefixstream
@@ -94,7 +97,7 @@ namespace LOG {
 
   static ofstream devnull("/dev/null");
   int verb(-1);
-oprefixstream trace(makePrefixer("TRACE"), devnull);
+  oprefixstream trace(makePrefixer("TRACE"), devnull);
   oprefixstream debug(makePrefixer("DEBUG"), devnull);
   oprefixstream info(makePrefixer("INFO"), devnull);
   oprefixstream warn(makePrefixer("WARN"), devnull);
@@ -107,8 +110,10 @@ oprefixstream trace(makePrefixer("TRACE"), devnull);
                  std::ostream &output) {
     if (verbosity<threshold) {
       stream.setStream(devnull);
+      stream.setShowPrefix(false);
     } else {
       stream.setStream(output);
+      stream.setShowPrefix(true);
     }
   }
   
