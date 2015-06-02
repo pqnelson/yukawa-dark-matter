@@ -202,10 +202,12 @@ $$
 
 @c 
 real YukawaDarkMatter::scalarPotential(real phi) {
+  if (m_scalarMass==0.0) return 0.0;
   return 0.5*SQ(phi*m_scalarMass);
 }
 
 real YukawaDarkMatter::partialScalarPotential(real phi) {
+  if (m_scalarMass==0.0) return 0.0;
   return phi*SQ(m_scalarMass);
 }
 
@@ -390,7 +392,9 @@ $$
 @c
 real YukawaDarkMatter::fermiMomentum(real r) {
   if (r > m_nuggetSize) return 0.0; /* avoid complex numbers! */
-  return cbrt(9.0*PI_8*m_fermionNumber*(1.0+m_a)*(2.0+3.0*m_a)*(1.0+3.0*m_a))*pow(1.0-(r/m_nuggetSize),m_a)/m_nuggetSize;
+  if (m_a==0.5) return m_fermiMomentumCoef*sqrt(1.0-(r/m_nuggetSize));
+  if (m_a==0.0) return m_fermiMomentumCoef;
+  return m_fermiMomentumCoef*pow(1.0-(r/m_nuggetSize),m_a);
 }
 
 @ {\bf First-Order Equations of Motion.}
@@ -466,7 +470,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
 
 @ @<Model Param...@>=
         real m_fermionMass, m_nuggetSize, m_couplingConstant, m_fermionNumber;
-        real m_scalarMass, m_a;
+        real m_scalarMass, m_a, m_fermiMomentumCoef;
 @ @<Model constructor@>=
   YukawaDarkMatter(real massChi, real R, real coupling, real
         fermionNumber, real scalarMass=0.0, real a=0.0): 
@@ -475,7 +479,8 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   m_couplingConstant(coupling),
   m_fermionNumber(fermionNumber),
   m_scalarMass(scalarMass),
-  m_a(a)
+  m_a(a),
+  m_fermiMomentumCoef(cbrt(9.0*PI_8*m_fermionNumber*(1.0+m_a)*(2.0+3.0*m_a)*(1.0+3.0*m_a))/m_nuggetSize)
    {}
 
 @ @<Accessor Methods@>=
@@ -483,6 +488,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   real nuggetSize() const { return m_nuggetSize; }
   real coupling() const { return m_couplingConstant; }
   real fermionNumber() const { return m_fermionNumber; }
+  real scalarMass() const { return m_scalarMass; }
 
 @ @<Mutator Methods@>=
   void setFermionNumber(real N) {
@@ -496,6 +502,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
       throw std::logic_error("R must be positive");
     }
     m_nuggetSize = R;
+    m_fermiMomentumCoef=cbrt(9.0*PI_8*m_fermionNumber*(1.0+m_a)*(2.0+3.0*m_a)*(1.0+3.0*m_a))/R;
   }
   void setMomentumParameter(real a) {
     m_a = a;
@@ -538,7 +545,7 @@ constexpr auto PI_8 = 0.39269908169872415480783042290994L;
 constexpr auto FOUR_PI = 12.566370614359172953850573533118L;
 constexpr auto SQRT_FOUR_PI = 3.5449077018110320545963349666823L;
 constexpr auto PI_SQ = 9.8696044010893586188344909998762L;
-typedef long double real;
+typedef double real;
 typedef std::size_t index;
 real convertAlphaToCoupling(real alpha) { return SQRT_FOUR_PI*sqrt(alpha); }
 real SQ(real x) { return x*x; }
