@@ -90,7 +90,7 @@ void updateVerbosity() {
            <<"(7) Quiet"<<std::endl;
   int verb;
   std::cin>>verb;
-  LOG::setVerbosity(verb);
+  LOG::setVerbosity(6-verb);
 }
 
 @* Getting Parameter Values.
