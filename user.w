@@ -133,20 +133,40 @@ YukawaDarkMatter* promptUserForParameters(YukawaDarkMatter *oldValues) {
   return model;
 }
 
-@ Determining the nugget size is fairly straightforward, and will just
-be printed to the screen.
+@ {\bf ``Hit Enter for Default Value''.}
+This functionality is reused many places, so I thought I ought to
+refactor it out as a function.
+
+@c
+
+template <typename T>
+bool useDefaultValue(std::string msg, T defaultVal, T &returnValue) {
+  std::cout<<msg
+           <<" [Hit enter for "
+           <<defaultVal
+           <<"]"<<std::endl;
+  std::cin.sync();
+  char c;
+  std::cin.get();
+  std::cin.get(c);
+  if (c=='\n') {
+    std::cin.sync();
+    returnValue = defaultVal;
+    return true;
+  }
+  std::cin.putback(c);
+  std::cin>>returnValue;
+  return false;
+}
+
+@ Determining the nugget size is fairly straightforward, and will
+just be printed to the screen. 
 
 @c
 index promptUserForLength() {
-  index length;
-  char c = 'a';
-  std::cout<<"How many subintervals would you like? [Hit enter for 1e6]"<<std::endl;
-  std::cin.sync();
-  std::cin.get();
-  std::cin.get(c);
-  if (c=='\n') return 1000000;
-  std::cin.putback(c);
-  std::cin>>length;
+  index length, defaultLength = 1000000;
+  useDefaultValue("How many subintervals would you like?",
+                  defaultLength, length);
   return length;
 }
 
