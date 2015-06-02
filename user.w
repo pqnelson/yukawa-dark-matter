@@ -120,15 +120,7 @@ real getParam(const char* paramName, bool strictlyPositive=false) {
 }
 
 YukawaDarkMatter* promptUserForParameters(YukawaDarkMatter *oldValues) {
-  if (oldValues) {
-    char reuse;
-    std::cout<<"Reuse same parameter values? [Yn] ";
-    std::cin.sync();
-    std::cin.get(reuse);
-    if (reuse=='y'||reuse=='Y'||reuse=='\n') {
-      return oldValues;
-    }
-  }
+  delete oldValues;
   real massChi, alpha, fermionNumber, scalarMass, a;
   massChi = getParam("fermion mass (m_{chi}) in GeV", true);
   std::cout<<"Enter the alpha value: "; 
