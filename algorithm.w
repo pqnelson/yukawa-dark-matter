@@ -131,8 +131,9 @@ can rest.
 We approximate the integral using Simpson's rule:
 $$
 \int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'=
-{h\over6}\bigl((r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
-r^{2}\sigma(r)\bigr)
+{h\over6}\bigl((r-h)^{2}\sigma(r-h)
++ (r - 0.5h)^2\sigma(r-0.5h)
++ r^{2}\sigma(r)\bigr)
  - \left.{h^{4}\over{2880}}
     {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}\eqn{}
 $$
@@ -386,6 +387,12 @@ void Solver::run() {
 
 @ We then consider the residual of the surface boundary conditions,
 which indicates ``how far off'' we are.
+
+Note, this is a good proxy for the overall residual since the uniqueness
+theorem for differential equations guarantees a function satisfying the
+boundary conditions to be uniquely determined. Since we have the
+$\phi'(0)=0$ trivially solved, the surface boundary condition's residual
+would indicate ``how far off'' we are from the honest solution.
 
 @c
 real Solver::residual() {
