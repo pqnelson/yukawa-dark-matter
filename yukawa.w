@@ -5,7 +5,9 @@
 @s real double
 @s index size_t
 @s constexpr const
-@s NoSolutionExistsException exception
+@s NoSolutionExistsException char
+@s MassOutOfBoundsException char
+@f numeric_limits make_pair
 
 \def\topofcontents{
  \null\vskip-35pt
@@ -99,11 +101,11 @@ $$
 $$
 We see
 $$
-\nabla\cdot{\partial L\over {\partial\nabla\phi(\vec{x})}}=\nabla^{2}\phi(\vec{x})
+\nabla\cdot{\partial L\over {\partial\nabla\phi(\vec{x})}}=-\nabla^{2}\phi(\vec{x})
 $$
 and
 $$
-{\partial L\over{\partial\phi(\vec{x})}}=\sum_{i}g_{\chi}\delta^{(3)}(\vec{x}-\vec{x}_{i})\sqrt{1-\dot{\vec{x}}_{i}^{2}}.
+{\partial L\over{\partial\phi(\vec{x})}}=-\sum_{i}g_{\chi}\delta^{(3)}(\vec{x}-\vec{x}_{i})\sqrt{1-\dot{\vec{x}}_{i}^{2}}.
 $$
 Thus we deduce the equations of motion for $\phi$:
 $$
@@ -184,7 +186,7 @@ equation, modifying Eq (\scalarFieldEqns) as
 $$
 \nabla^{2}\phi(\vec{x})
 =\sum_{i}g_{\chi}\delta^{(3)}(\vec{x}-\vec{x}_{i})\sqrt{1-\dot{\vec{x}}_{i}^{2}}
--{\partial V(\phi)\over{\partial\phi(\vec{x})}}.
++{\partial V(\phi)\over{\partial\phi(\vec{x})}}.
 \eqno{(\scalarFieldEqns{}')}
 $$
 This does not alter the definition of $\vec{p}_{i}$, but the Hamiltonian
@@ -195,7 +197,7 @@ $$
 H = \sum_{i}\sqrt{\vec{p}_{i}^{2}+m(\vec{x}_{i})^{2}} 
 - {g_{\chi}\over 2}\sum_{i}\phi(\vec{x}_{i})
   {m(\vec{x}_{i})\over{\sqrt{\vec{p}_{i}^{2}+m(\vec{x}_{i})^{2}}}}
-+\int\left(V(\phi)+{1\over 2}\phi(\vec{x}){\partial V(\phi)\over{\partial\phi(\vec{x})}}\right)
++\int\left(V(\phi)-{1\over 2}\phi(\vec{x}){\partial V(\phi)\over{\partial\phi(\vec{x})}}\right)
 {\rm d}^{3}x.
 \eqno{(\hamiltonionDefn{}')}
 $$
@@ -282,7 +284,7 @@ If we added a nonzero $V(\phi)$ potential, then we'll need to add
 $$
 E_{{\rm int}}(R) = {4\pi\over 3}\int^{R}_{0}
 r^{2}\left[
-  V(\phi)+{1\over 2}\phi(r){\partial V(\phi)\over{\partial\phi(r)}}
+  V(\phi)-{1\over 2}\phi(r){\partial V(\phi)\over{\partial\phi(r)}}
 \right]{\rm d}r\eqn{}
 $$
 to the total energy function.\callthis\energyContinuumLimit
@@ -322,7 +324,7 @@ const real LN_4 = 1.3862943611198906188344642429164L;
 real YukawaDarkMatter::energyDensity(real mass, real r) {
   real phi = massToField(mass);
   real massTerm, freeTerm;
-  massTerm = scalarPotential(phi)+0.5*phi*partialScalarPotential(phi);
+  massTerm = scalarPotential(phi)-0.5*phi*partialScalarPotential(phi);
   if (fabs(mass)<0.1) {
     real p = fermiMomentum(r);
     real logP = log(p);
@@ -344,7 +346,7 @@ changes to
 $$
 \nabla^{2}\phi(r) = {{{\rm d}^{2}}\over {{\rm d}r^{2}}}\phi(r)+{2\over
 r}{{{\rm d}}\over {{\rm d}r}}\phi(r) =
-{g_{\chi}\over\pi^{2}}m(r)^{3}i(p_{F}(r)/|m(r)|)-{\partial V(\phi)\over{\partial\phi(r)}}\eqn{}
+{g_{\chi}\over\pi^{2}}m(r)^{3}i(p_{F}(r)/|m(r)|)+{\partial V(\phi)\over{\partial\phi(r)}}\eqn{}
 $$
 This is great, it's the equation we will be solving, but we have one
 glaring problem: we never specified $p_{F}(r)$.
@@ -367,7 +369,7 @@ real YukawaDarkMatter::source(real mass, real r) {
     iTerm = CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
   }
   real fermionContribution = (coupling()/PI_SQ)*iTerm;
-  return fermionContribution-partialScalarPotential(massToField(mass));
+  return fermionContribution+partialScalarPotential(massToField(mass));
 }
 
 @ {\bf Momentum Ansatz.}
@@ -403,14 +405,14 @@ differential equation:
 $$
 \phi'(r) = {1\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
--{{\partial V}\over{\partial\phi}}
++{{\partial V}\over{\partial\phi}}
 \right]{\rm d}r'.\eqn{}
 $$
 We can see this from
 $$
 {{\rm d}\over{{\rm d}r}}[r^{2}\phi'(r)] = 
 {g_{\chi}\over \pi^{2}}r^{2}m(r)^{3}i\left({{p_{F}(r)}\over\abs{m(r)}}\right)
--r^{2}{{\partial V}\over{\partial\phi}}\eqn{}
++r^{2}{{\partial V}\over{\partial\phi}}\eqn{}
 $$
 which is precisely the equations of motion multipled by $r^{2}$. This
 first-order ODE remains quite nonlinear.
@@ -422,7 +424,7 @@ $$
 {{\rm d}\over{{\rm d}r}}m(r) = 
 {g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
--g_{\chi}{{\partial V}\over{\partial m(r)}}
++{{\partial V}\over{\partial m(r)}}
 \right]{\rm d}r'.\eqn{}
 $$
 
@@ -455,7 +457,7 @@ m'(r)
 =
 {g_{\chi}\over{r^{2}}}\int^{r}_{0}(r')^{2}\left[
 {g_{\chi}\over \pi^{2}}m(r')^{3}i\left({{p_{F}(r')}\over\abs{m(r')}}\right)
--{{\partial V}\over{\partial\phi}}
++{{\partial V}\over{\partial\phi}}
 \right]{\rm d}r'.\eqn{}
 $$
 For the free situation $V=0$, we have $m'(r)>0$ and hence does not
@@ -463,9 +465,21 @@ change sign.
 @^Constraint, Positive Mass@>
 \callthis\constrainMassAsPositive
 
+But for the massive situation $m_{\phi}\neq0$ or the self-interacting
+scalar field, we cannot neglect the potential contribution. This
+prevents us from generalizing the constraint to our particular
+situation. However, the {\it physical} situation would have
+$\abs{m(r)}\leq m_{\chi}$, so we just impose this constraint instead.
+
+\rmk
+If the sign of the effective mass changes, we have to carefully revisit
+the ansatz for our Fermi momentum. Specifically, how it would behave at
+that point.
+@^Effective Mass, Sign Changes@>
+
 @c
 bool YukawaDarkMatter::isValidMass(real mass) {
-     return (0.0<=mass && mass<=m_fermionMass);
+     return (fabs(mass)<=m_fermionMass);
 }
 
 @ @<Model Param...@>=
