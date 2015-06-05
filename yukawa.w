@@ -315,6 +315,9 @@ $$
     return 0.25*(i(z) + z*u*hypot(1.0,z));
   }
 }
+bool isEffectiveMassZeroLike(real effectiveMass, real fermiMomentum) {
+     return ((effectiveMass<1e-7) && (10.0*effectiveMass < fermiMomentum));
+}
 const real LN_4 = 1.3862943611198906188344642429164L;
 real YukawaDarkMatter::energyDensity(real mass, real r) {
   real phi = massToField(mass);
@@ -322,7 +325,7 @@ real YukawaDarkMatter::energyDensity(real mass, real r) {
   massTerm = scalarPotential(phi)-0.5*phi*partialScalarPotential(phi);
   real p = fermiMomentum(r);
   real m = fabs(mass);
-  if (m<1e-7 && m<10.0*p) {
+  if (isEffectiveMassZeroLike(m,p)) {
     real logP = log(p);
     real logM = log(m);
     real hTerm = 0.25*pow(p,4.0)+SQ(mass)*(0.25*SQ(p)+0.03125*SQ(mass)*(1.0-2.0*LN_4-4.0*logP+4.0*logM));
@@ -358,7 +361,7 @@ real YukawaDarkMatter::source(real mass, real r) {
   real iTerm;
   real p = fermiMomentum(r);
   real m = fabs(mass);
-  if (m<1e-7 && m<10.0*p) {
+  if (isEffectiveMassZeroLike(m,p)) {
     real logP = log(p);
     real logM = log(m);
     iTerm = mass*(0.5*SQ(p)+0.25*(1.0-LN_4-2.0*logP+2.0*logM));
