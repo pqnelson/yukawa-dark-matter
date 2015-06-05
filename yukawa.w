@@ -314,7 +314,7 @@ $$
     real u = z*z;
     return 0.25*(i(z) + z*u*hypot(1.0,z));
   }
-}
+}@#
 bool isEffectiveMassZeroLike(real effectiveMass, real fermiMomentum) {
      return ((effectiveMass<1e-7) && (10.0*effectiveMass < fermiMomentum));
 }
@@ -561,9 +561,10 @@ constexpr auto SQRT_FOUR_PI = 3.5449077018110320545963349666823L;
 constexpr auto PI_SQ = 9.8696044010893586188344909998762L;
 typedef double real;
 typedef std::size_t index;
-real convertAlphaToCoupling(real alpha) { return SQRT_FOUR_PI*sqrt(alpha); }
 real SQ(real x) { return x*x; }
 real CUBE(real x) { return x*x*x; }
+real couplingToAlpha(real coupling) { return 0.25*SQ(coupling)/PI; }
+real convertAlphaToCoupling(real alpha) { return SQRT_FOUR_PI*sqrt(alpha); }
 
 @ {\bf Exceptions.}
 We have several different exceptions we need to define. One is if we
