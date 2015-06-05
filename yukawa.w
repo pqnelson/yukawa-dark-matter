@@ -320,16 +320,17 @@ real YukawaDarkMatter::energyDensity(real mass, real r) {
   real phi = massToField(mass);
   real massTerm, freeTerm;
   massTerm = scalarPotential(phi)-0.5*phi*partialScalarPotential(phi);
-  if (fabs(mass)<0.1) {
-    real p = fermiMomentum(r);
+  real p = fermiMomentum(r);
+  real m = fabs(mass);
+  if (m<1e-7 && m<10.0*p) {
     real logP = log(p);
-    real logM = log(mass);
+    real logM = log(m);
     real hTerm = 0.25*pow(p,4.0)+SQ(mass)*(0.25*SQ(p)+0.03125*SQ(mass)*(1.0-2.0*LN_4-4.0*logP+4.0*logM));
     real iTerm = mass*(0.5*SQ(p)+0.25*(1.0-LN_4-2.0*logP+2.0*logM));
     freeTerm = (hTerm - 0.5*coupling()*iTerm*phi);
     return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
   } else {
-    real p = fermiMomentum(r)/fabs(mass);
+    p = p/m;
     freeTerm = CUBE(mass)*(mass*Util::h(p) - 0.5*coupling()*phi*Util::i(p));
     return 4.0*PI_3*SQ(r)*(freeTerm + massTerm);
   }
@@ -355,13 +356,14 @@ terms. We did this once before with the energy density (\S\energyContinuumLimit)
 @c
 real YukawaDarkMatter::source(real mass, real r) {
   real iTerm;
-  if (fabs(mass)<0.1) {
-    real p = fermiMomentum(r);
+  real p = fermiMomentum(r);
+  real m = fabs(mass);
+  if (m<1e-7 && m<10.0*p) {
     real logP = log(p);
-    real logM = log(mass);
+    real logM = log(m);
     iTerm = mass*(0.5*SQ(p)+0.25*(1.0-LN_4-2.0*logP+2.0*logM));
   } else {
-    iTerm = CUBE(mass)*Util::i(fermiMomentum(r)/fabs(mass));
+    iTerm = CUBE(mass)*Util::i(p/m);
   }
   real fermionContribution = (coupling()/PI_SQ)*iTerm;
   return fermionContribution+partialScalarPotential(massToField(mass));
