@@ -2,23 +2,7 @@
 
 \input macros
 
-@s real double
-@s index size_t
-@s constexpr const
-@s NoSolutionExistsException char
-@s MassOutOfBoundsException char
-@s string char
-@s std int
-@s bool int
-@s complex int
-@s ios int
-@s iterator int
-@s less int
-@s map int
-@s pair int
-@s static_cast int
-@s vector int
-@f numeric_limits make_pair
+@i typography.w
 
 \def\topofcontents{
  \null\vskip-35pt
