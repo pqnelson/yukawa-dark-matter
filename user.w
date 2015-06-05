@@ -215,7 +215,7 @@ void plotEffectiveMass(YukawaDarkMatter *oldParameters) {
   std::cin>>filename;
   data.open(filename);
   data<<"# fermion mass = "<<(model->fermionMass())
-      <<", alpha = "<<4.0*PI*SQ(model->coupling())
+      <<", alpha = "<<couplingToAlpha(model->coupling())
       <<", N = "<<(model->fermionNumber())<<"\n";
 
 @ @<Print Solution to File@>=
