@@ -1,4 +1,4 @@
-@* User Interface.
+@** User Interface.
 I've decided to opt for a simple command line interface which will ask
 the user for various options. This is nothing fancy, and really will
 just be responsible for determining which routines to run.

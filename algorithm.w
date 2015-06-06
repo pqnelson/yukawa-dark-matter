@@ -1,4 +1,4 @@
-@* Algorithmic Structure.
+@** Algorithmic Structure.
 The basic algorithm solves the first-order scalar field equations
 (\S\firstOrderFieldEqns) in a pseudo-shooting manner. Since we know the
 mass is always positive (\S\constrainMassAsPositive), we can use the
@@ -23,26 +23,13 @@ $m_{n}$, and $m_{n-1}$. First we must prove a few lemmas.
 @c
 class Solver {
 private:
-        YukawaDarkMatter *model;
-        real *m_mass;
-        index length;
-        void iterate(index j);
-        void solveScalarField();
-        void shootingMethod();
-        void bisectionMethod();
+        @<Solver's Fields@>@;
+        @<Solver's Internal Routines@>@;
 public:
-        Solver(YukawaDarkMatter *m, index l): model(m), m_mass(new
-        real[l]), length(l) {};
-        ~Solver() { delete m_mass; }
+        @<Solver Constructor and Destructor@>@;
         void run();
-        real residual();
-        real* getMass() const { return m_mass; }
-        index getLength() const { return length; }
-        real dx() const { return (model->nuggetSize())/length; }
-        void dumpEnergy();
-        void naiveFindNuggetSize(real TOL=1e-4);
-        void findNuggetSize();
-        real computeEnergy();
+        @<Solver's Accessor Methods@>@;
+        @<Solver's Computational Routines@>@;
 };
 
 @ {\bf Lemma.}
@@ -258,7 +245,7 @@ b' = -\log_{10}\left({{72.7375}\over{2.21073}}\right)\approx-1.51722.\eqn{}
 $$
 So we find $m_{0}\sim\alpha^{-3/2}$. We find $c_{\alpha}\approx 0.07$.
 
-@* Shooting Method.
+@* Find Solution Satisfy the Boundary Conditions.
 We now iteratively determine the solution. The method so far is
 incredibly naive, readjusting the initial position based on the sign of
 the residual of the surface boundary condition. One method to speed this
@@ -446,14 +433,28 @@ void Solver::dumpEnergy() {
 }
 
 @* Determining the Nugget Size.
-This procedure is a bit tricky. We want to find the nugget size which
-minimizes the energy (\S\energyContinuumLimit). One approach is to just
-``walk'' along the values of $R$, and determine when the energy is
-increasing. Then go back to the last place where it was decreasing, and
-walk smaller steps. Keep iterating until you're satisfied.
+We want to find the nugget size which minimizes the energy
+(\S\energyContinuumLimit).
+
+One approach is to just ``walk'' along the values of $R$, and determine
+when the energy is increasing. Then go back to the last place where it
+was decreasing, and walk smaller steps. Keep iterating until you're
+satisfied. This is a ``bisection-like method'', and incredibly slow.
 @^Nugget Size, determining@>
 
-The short version: it's the secant method with a lot of paranoia built-in.
+The clever approach is to sample energy points at the current nugget
+size $R_{1}=R$, but also at $R_{0}=R-h$ and $R_{2}=R+h$ for some
+$0<h\ll R$. Then construct a quadratic polynomial
+$$
+E(R) = E_{0} + E'_{0}(R-R_{0}) + {E''_{0}\over 2!}(R-R_{0})^{2}.
+$$
+Take its derivative, solve for $E'(R)=0$. This will give us our next
+guess for $R$ which {\it extremizes} the energy. Since the energy
+appears to be a ``parabolic'' function of nugget size, this would
+produce the minima desired.
+
+\proclaim Puzzle. When $m_{\phi}=0$, the energy as a function of nugget
+size $E(R)$ is ``parabolic''. But is this still true for $m_{\phi}\neq0$?
 
 @c
 void Solver::findNuggetSize() {
@@ -551,10 +552,10 @@ This is how we determine our next guess.
       }
     } else if (dE[0]<0.0 && dE[1]<0.0) {
       nextR = R - 0.5*h + fabs(derivative/dSqE);
+    } else if (dE[0]>0.0 && dE[1]<0.0) {
+      nextR = R;
+      LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
     } else {
-      if (dE[0]>0.0 && dE[1]<0.0) {
-        LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
-      }
       nextR = R;
     }
 
@@ -566,47 +567,37 @@ This is how we determine our next guess.
       break;
     }
 
-@ {\bf Naive Method for Determining Nugget Size.}
-This is a deprecated method for finding the nugget size. Basically,
-``walk'' out at some step size $\Delta R$ until the energy starts
-increasing. Then go back to where it was decreasing, and start walking
-with a smaller step size
+@ {\bf Backmatter.}
+Now that we are ``done'' with the algorithms, I will just dump the
+various components of the |Solver| class here.
 
-@c
-void Solver::naiveFindNuggetSize(real TOL) {
-     real minR, R, E, ePrime, dE;
-     real dR = 0.25;
-     minR = 0.0;
-     index j;
-     R = dR; 
-     model->setNuggetSize(R);
-     run();
-     E = computeEnergy();
-     minR = R;
-     for(j=1; j<20; j++) {
-       R = minR + dR*j; 
-       model->setNuggetSize(R);
-       run();
-       ePrime = computeEnergy();
-       dE = ePrime-E;
-       E = ePrime;
-       if (dE<0) {
-         minR = R;
-       } else { /* E is increasing */
-         if (minR<2*dR) {
-           minR = 0.5*dR;
-         } else {
-           minR = minR - dR;
-         }
-         dR *= 0.5;
-         if (dR < TOL) {
-           LOG::info<<"R is small enough, bailing out with R="<<R<<std::endl;
-           break;
-         }
-         model->setNuggetSize(minR);
-         run();
-         E = computeEnergy();
-         j = 0;
-       }
-   }
-}
+@ @<Solver's Fields@>=
+  YukawaDarkMatter *model;
+  real *m_mass;
+  index length;
+
+@ @<Solver's Internal Routines@>=
+  void iterate(index j);
+  void solveScalarField();
+  void shootingMethod();
+  void bisectionMethod();
+
+@ @<Solver Constructor and Destructor@>=
+  Solver(YukawaDarkMatter *m, index l):
+    model(m),
+    m_mass(new real[l]),
+    length(l)
+    {};
+  ~Solver() { delete m_mass; }
+
+@ @<Solver's Accessor Methods@>=
+  real* getMass() const { return m_mass; }
+  index getLength() const { return length; }
+  real dx() const { return (model->nuggetSize())/length; }
+
+@ @<Solver's Computational Routines@>=
+  real residual();
+  void dumpEnergy();
+  void findNuggetSize();
+  real computeEnergy();
+  
