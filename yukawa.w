@@ -521,6 +521,9 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   void setMomentumParameter(real a) {
     m_a = a;
   }
+  void setScalarMass(real mPhi) {
+    m_scalarMass = mPhi;
+  }
 
 @ @<Routines@>=
   real scalarPotential(real phi);

@@ -6,8 +6,9 @@ just be responsible for determining which routines to run.
 @c
 void plotBindingEnergy(YukawaDarkMatter* oldParameters);
 void plotNuggetSize(YukawaDarkMatter* oldParameters);
-void plotEffectiveMass(YukawaDarkMatter *oldParameters);
+void plotEffectiveMass(YukawaDarkMatter* oldParameters);
 void determineNuggetSize(YukawaDarkMatter* oldParameters);
+void plotNuggetSizeAgainstScalarMass(YukawaDarkMatter* oldParameters);
 void updateVerbosity();
 enum UserInput {
   USER_UNKNOWN = 0,@/
@@ -15,8 +16,9 @@ enum UserInput {
   USER_ENERGY_VS_FERMION_NUMBER = 2,@/
   USER_RADIUS_VS_FERMION_NUMBER = 3,@/
   USER_PLOT_EFFECTIVE_MASS = 4,@/
-  USER_VERBOSITY = 5,@/
-  USER_QUIT = 6
+  USER_NUGGET_SIZE_VS_SCALAR_MASS = 5,@/
+  USER_VERBOSITY = 6,@/
+  USER_QUIT = 7
 };
 
 @ We begin by asking the user what they'd like to do. This is a simple
@@ -45,9 +47,11 @@ void repl() {
   std::cout<<"(3) Plot Nugget size (R) against Binding Energy"<<std::endl;
   std::cout<<"(4) Plot the scale-invariant mass given the "
            <<"fermion mass and fermion number"<<std::endl;
-  std::cout<<"(5) Change warning level [Currently: "
+  std::cout<<"(5) Plot the Nugget size (R) as a function of scalar mass"
+           <<std::endl;
+  std::cout<<"(6) Change warning level [Currently: "
            <<LOG::getVerbosity()<<"]"<<std::endl;
-  std::cout<<"(6) Quit"<<std::endl;
+  std::cout<<"(7) Quit"<<std::endl;
   int userChoice;
   std::cin>>userChoice;
 
@@ -63,6 +67,9 @@ void repl() {
       break;
     case USER_PLOT_EFFECTIVE_MASS:@#
       plotEffectiveMass(model);
+      break;
+    case USER_NUGGET_SIZE_VS_SCALAR_MASS:@#
+      plotNuggetSizeAgainstScalarMass(model);
       break;
     case USER_VERBOSITY:@#
       updateVerbosity();
@@ -317,4 +324,36 @@ real getNuggetSize(Solver* solver, real N, YukawaDarkMatter *model) {
 
 void plotNuggetSize(YukawaDarkMatter* oldParameters) {
   logPlot("R", oldParameters, getNuggetSize);
+}
+
+@* Plotting Nugget Size as Function of Scalar Mass.
+This actually comes in handy when trying to figure out how scalar mass
+affects the nugget's stability.
+
+@c
+void plotNuggetSizeAgainstScalarMass(YukawaDarkMatter* oldParameters) {
+  YukawaDarkMatter* model = promptUserForParameters(oldParameters);
+  real maxScalarMass, dScalarMass;
+  std::cout<<"What is the max scalar mass?"<<std::endl;
+  std::cin>>maxScalarMass;
+  std::cout<<"What is the step size for the scalar mass?"<<std::endl;
+  std::cin>>dScalarMass;
+  index MAX_ITER = (index)(maxScalarMass/dScalarMass);
+  std::cout<<"Will have "<<MAX_ITER<<" iterations"<<std::endl;
+  index length = promptUserForLength();
+  @<Determine Output File@>@;
+  Solver *solver = new Solver(model, length);
+  data<<"# scalar mass    R    residual\n";
+  real R, scalarMass;
+  for(index j=0; j<1+MAX_ITER; j++) {
+    scalarMass = j*dScalarMass;
+    model->setScalarMass(scalarMass);
+    solver->findNuggetSize();
+    R = model->nuggetSize();
+    data<<scalarMass<<"    "<<R<<"    "<<(solver->residual())<<"\n";
+    data.flush();
+  }
+  data.close();
+  delete solver;
+  updateOldParameters(oldParameters, model);
 }
