@@ -115,7 +115,20 @@ We are left with trying to approximate the integral expression before we
 can rest.
 
 @ {\bf Approximating the Integral.}
-We approximate the integral using Simpson's rule:
+We approximate the integral using Simpson's rule. Recall...
+
+\proclaim Simpson's Rule. If $f\in C^{4}(a,b)$, then we may approximate
+the integral
+$$
+\int^{b}_{a}f(x)\,{\rm d}x=
+{h\over6}\left(f(a) + f\left({{a+b}\over2}\right)+f(b)\right)
+ - \left.{h^{4}\over{2880}}
+    {{\rm d}^{4}\over{{\rm d}x^{4}}}f(x)\right\evalAt_{r=\xi}\eqn{}
+$$
+for some $\xi\in(a,b)$.
+@^Simpson's Rule@>
+
+We can apply this directly to our problem, to find:
 $$
 \int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'=
 {h\over6}\bigl((r-h)^{2}\sigma(r-h)
@@ -125,7 +138,7 @@ $$
     {{\rm d}^{4}\over{{\rm d}r^{4}}}(r^{2}\sigma(r))\right\evalAt_{r=\xi}\eqn{}
 $$
 for some $\xi\in(r-h,r)$.
-@^Simpson's Rule@>
+
 
 @* Iterative Procedure.
 We can combine the previous steps to conclude
