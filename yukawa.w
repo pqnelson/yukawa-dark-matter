@@ -679,14 +679,17 @@ int main() {
 \def\ref[#1] {\smallskip\noindent\hangindent\refindent
   \hbox to\refindent{\hfill[#1]\enspace}}
 
+\def\journal#1{{\sl #1}\ \ignorespaces}
+\def\volume#1{{\bf #1}}
+
 \ref[\Fr] Marco Frasca, ``Exact solutions of classical scalar field
-equations''. {\sl J.Nonlin.Math.Phys.} {\bf 18} (2011)
+equations''. \journal{J.Nonlin.Math.Phys.} \volume{18} (2011)
 291--297, \arXiv{0907.4053}. Discusses exact solution for $\phi^{4}$
 classically. 
 @^Frasca, Marco@>
 
 \ref[\WZ] Mark Wise and Yue Zhang, ``Yukawa Bound States of a Large
-Number of Fermions''. {\sl JHEP} {\bf 1502} no.2 (2015) 23, \arXiv{1411.1772}.
+Number of Fermions''. \journal{JHEP} \volume{1502} no.2 (2015) 23, \arXiv{1411.1772}.
 @^Wise, Mark@>
 @^Zhang, Yue@>
 
