@@ -167,7 +167,7 @@ $$
   real rSq = SQ(r);
   real rPrime = (j-2)*h;
   real rPrimeSq = SQ(rPrime);
-  real u = rPrime/r; 
+  real u = (rPrime/r);
   real c = (model->coupling())/rSq;
 
   real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
@@ -179,7 +179,7 @@ $$
   k[1] = SQ(u)*(model->source(m, u));
   k[2] = rSq*(model->source(m_mass[j-1], r));
 
-  real integral = (h/6.0)*(k[0] + 4.0*k[1] + k[2]);
+  real integral = (h*ONE_SIXTH)*(k[0] + 4.0*k[1] + k[2]);
 
   m_mass[j] = massTerms + c*h*integral;
 }
@@ -258,7 +258,7 @@ b' = -\log_{10}\left({{72.7375}\over{2.21073}}\right)\approx-1.51722.\eqn{}
 $$
 So we find $m_{0}\sim\alpha^{-3/2}$. We find $c_{\alpha}\approx 0.07$.
 
-@* Find Solution Satisfy the Boundary Conditions.
+@* Find Solution Satisfying the Boundary Conditions.
 We now iteratively determine the solution. The method so far is
 incredibly naive, readjusting the initial position based on the sign of
 the residual of the surface boundary condition. One method to speed this
@@ -282,10 +282,12 @@ This gives us a way to find the solution faster (in theory).
 
 @c
 void Solver::shootingMethod() {
-  const real TOL = 1e-7;
+  const real TOL = 1e-12;
   real massLowerBound = 0.0;
   real massUpperBound = model->fermionMass();
   real m = 0.0, residual_ =0.0;
+  real residualUpper = 10000.0;
+  real residualLower = -10000.0;
   real masses[2];
   real res[2];
   int k=0;
@@ -295,15 +297,30 @@ void Solver::shootingMethod() {
     @<Solve the System Once@>@;
     masses[j] = m;
     residual_ = res[j] = residual();
-    if(res[j]>0.0) massUpperBound = m;
-    if(res[j]<0.0) massLowerBound = m;
+    if(res[j]>0.0) {
+      massUpperBound = m;
+      residualUpper = res[j];
+    }
+    if(res[j]<0.0) {
+      massLowerBound = m;
+      residualLower = res[j];
+    }
     if(j==0 && (massUpperBound==model->fermionMass())) {
       @<Adjust the bounds if needed@>@;
     }
   }
-  for(k=0; k<10; k++) {
+  for(k=0; k<12; k++) {
     @<Solve System with Extrapolated...@>@;
     @<Update the Guess from the Residual and Masses@>@;
+    if (residual_>TOL && residual_<residualUpper) {
+      residualUpper = residual_;
+      massUpperBound = m;
+    } else if (residual_<-TOL && residualLower < residual_) {
+      massLowerBound = m;
+      residualLower = residual_;
+    } else {
+      break;
+    }
   }
 }
 
@@ -320,7 +337,8 @@ condition.
 
 @<Solve System with Extrapolated Mass@>=
   LOG::trace<<"Solving the system with the new initial condition"<<std::endl;
-  m = masses[0] - res[0]*((masses[1]-masses[0])/(res[1]-res[0]));
+  real deltaM = res[0]*((masses[1]-masses[0])/(res[1]-res[0]));
+  m = masses[0] + (residual_<0.0 ? -1.0 : 1.0)*fabs(deltaM);
   @<Fallback to Bisection@>@;
   m_mass[0] = m;
   m_mass[1] = m;
@@ -343,27 +361,43 @@ precision to 7 digits or so.
 
 @ @<Adjust the bounds if needed@>=
   LOG::trace<<"Checking to see if we need to adjust the bounds on the guess for the initial condition"<<std::endl;
-  if(residual_>TOL && m<massUpperBound) {
+  if(residual()>TOL && m<massUpperBound) {
     massUpperBound = m;
-  } else if (residual_<-TOL && m>massLowerBound) {
+  } else if (residual()<-TOL && m>massLowerBound) {
     massLowerBound = m;
-  } else if (fabs(residual_)<TOL) {
-    break;
+  } else if (fabs(residual())<TOL) {
+    return;
   }
 
 @ @<Solve the System Once@>=
   LOG::trace<<"Iteratively solving the system (slow)..."<<std::endl;
-  do {
+  while (true) {
     try {
       solveScalarField();
       break;
     } catch (MassOutOfBoundsException e) {
       LOG::info<<"Guessed too high (Out of bounds exception caught)"<<std::endl;
-      massUpperBound = m;
+      if (fabs(m)<1e-21) {
+        throw NoSolutionExistsException("Cannot find a nonzero solution");
+      } else {
+        massUpperBound = m;
+      }
       @<Set the initial condition@>@;
     }
-  } while(true);
+  }
   LOG::trace<<"Solution found!"<<std::endl;
+
+@ @<Set the initial condition@>=
+  m = 0.5*(massUpperBound + massLowerBound);
+  if (m==0.0) {
+    m += 1e-7;
+  }
+  if (false) {
+    throw NoSolutionExistsException("Solver::shootingMethod() initial guess smaller than machine epsilon");
+  }
+  LOG::info<<"Guessing again with m = "<<m<<std::endl;
+  m_mass[0] = m;
+  m_mass[1] = m;
 
 @ @c
 void Solver::run() {
@@ -371,19 +405,6 @@ void Solver::run() {
   shootingMethod();
   LOG::trace<<"Solver::run() terminating..."<<std::endl;
 }
-
-@ @<Set the initial condition@>=
-  if(m>0.0) {
-    m = 0.5*(massUpperBound + massLowerBound);
-    if (m < std::numeric_limits<double>::epsilon()) {
-      throw NoSolutionExistsException("");
-    }
-  } else {
-    m = 1.0;
-  }
-  LOG::info<<"Guessing again with m = "<<m<<std::endl;
-  m_mass[0] = m;
-  m_mass[1] = m;
 
 @ We then consider the residual of the surface boundary conditions,
 which indicates ``how far off'' we are.
@@ -424,7 +445,7 @@ real Solver::computeEnergy() {
   }
   energy += 4.0*(model->energyDensity(m_mass[length-2], (length-2)*h));
   energy += (model->energyDensity(m_mass[length-1], (length-1)*h));
-  return energy*h/6.0;
+  return energy*h*ONE_SIXTH;
 }
 
 @ {\bf Dump Energy.}
@@ -477,25 +498,28 @@ void Solver::findNuggetSize() {
   real nextR;
   real dE[2];
   real E[3];
+  int silverBullets = 5;
   for(int j=0; j<20; j++) {
     try {
       h = initialH/(j+1.0);
       @<Sample Local Energy@>@;
       @<Compute Radial Derivatives of Energy@>@;
       @<Determine Next Guess for Nugget Size@>@;
-      if (dE[0]<0.0 && dE[1]>0.0) {
-        break;
-      }
       LOG::info<<std::setprecision(20)
                <<"R = "
                <<nextR<<std::endl;
       @<Terminate Nugget Iterative Loop if Good Enough@>@;
       R = nextR;
     } catch (NoSolutionExistsException e) {
-      R *= 0.50;
-      LOG::info<<"No such solution exists, guessing again with R = "
+      @<Handle no solution for given radius@>@;
+    } catch (NegativeDistanceException e) {
+      R = -10.0*R;
+      LOG::info<<"Guessed a negative distance, trying again with R = "
                <<R<<std::endl;
-      j--;
+      if (silverBullets>0) {
+        silverBullets--;
+        j=0;
+      }
     }
   }
   LOG::info<<"Setting R = "<<std::setprecision(20)<<R<<std::endl;
@@ -503,15 +527,33 @@ void Solver::findNuggetSize() {
   LOG::trace<<"Solver::findNuggetSize() terminating..."<<std::endl;
 }
 
+@ {\bf Todo: Pick next radius when we cannot find a solution.}
+This is the biggest problem I need to think deeply about: when the
+solver cannot find a solution for the given radius, how should this be
+handled? We can pick a bigger radius (or a smaller one), or do something
+else.
+@^TODO: Minimize Energy Problem@>
+
+@<Handle no solution for given radius@>=
+      if (R<0.25) {
+        R *= 2.0;
+      } else {
+        R += 0.25;
+      }
+      LOG::info<<"No such solution exists, guessing again with R = "
+               <<R<<std::endl;
+      j--;
+
+
 @ We know that $R\sim 1/m_{\chi}$, but after a few numerical experiments
 I found that $R\approx 16\sqrt{N}\hbar c/m_{\chi}$ is a decent
-approximation.
+approximation when $m_{\phi}=0$.
 \callthis\initialGuessForNuggetSize
 
 @<Initial Guess for Nugget Size@>=
   real R = 16.0*sqrt(model->fermionNumber())*(hbarC/(model->fermionMass()));
   if (R<h) {
-    h = 0.5*R;
+    h = 0.125*R;
   }
   real initialH = h;
   LOG::trace<<"Initial guess for R: "
@@ -558,24 +600,22 @@ $$
 This is how we determine our next guess.
 
 @<Determine Next Guess for Nugget Size@>=
-    if(dE[0]>0.0 && dE[1]>0.0) {
-      nextR = R - 0.5*h - fabs(derivative/dSqE);
+    if ((dE[0]>0.0 && dE[1]>0.0) || (dE[0]<0.0 && dE[1]<0.0)) {
+      nextR = R - 0.5*h - (dE[0]>0.0 ? 1.0 : -1.0)*fabs(derivative/dSqE);
       if (nextR < 0.0) {
         nextR = 0.5*R;
       }
-    } else if (dE[0]<0.0 && dE[1]<0.0) {
-      nextR = R - 0.5*h + fabs(derivative/dSqE);
     } else if (dE[0]>0.0 && dE[1]<0.0) {
       nextR = R;
       LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
     } else {
-      nextR = R;
+      h *= 0.5;
+      nextR = R + h;
     }
 
 @ @<Terminate Nugget Iterative Loop if Good Enough@>=
-    if (fabs(nextR-R)<1e-4 || fabs(derivative/E[0])<1e-7) {
-      LOG::info<<" terminating approximation for R, "
-               <<((fabs(nextR-R)<1e-4) ? "next R too close" : "derivative too small")<<std::endl;
+    if (fabs(nextR-R)<1e-14) {
+      LOG::info<<" terminating approximation for R, next R too close"<<std::endl;
       R = nextR;
       break;
     }

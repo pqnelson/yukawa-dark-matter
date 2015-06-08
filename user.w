@@ -35,6 +35,8 @@ void repl() {
       @<Evaluate User Input@>@;
     } catch (NoSolutionExistsException e) {
       std::cerr<<"Error: no such solution exists!"<<std::endl;
+    } catch (...) {
+      std::cerr<<"Unknown error caught!"<<std::endl;
     }
     delete model;
   }
@@ -187,6 +189,10 @@ void determineNuggetSize(YukawaDarkMatter* oldParameters) {
   index length = promptUserForLength();
   Solver *solver = new Solver(model, length);
   solver->findNuggetSize();
+  solver->run();
+  std::cout<<"Residual: "
+           <<std::setprecision(20)
+           <<(solver->residual())<<std::endl;
   std::cout<<"Nugget Size (R) = "
            <<std::setprecision(20)
            <<(model->nuggetSize())<<std::endl;
@@ -346,12 +352,20 @@ void plotNuggetSizeAgainstScalarMass(YukawaDarkMatter* oldParameters) {
   data<<"# scalar mass    R    residual\n";
   real R, scalarMass;
   for(index j=0; j<1+MAX_ITER; j++) {
-    scalarMass = j*dScalarMass;
-    model->setScalarMass(scalarMass);
-    solver->findNuggetSize();
-    R = model->nuggetSize();
-    data<<scalarMass<<"    "<<R<<"    "<<(solver->residual())<<"\n";
-    data.flush();
+    try {
+      scalarMass = j*dScalarMass;
+      model->setScalarMass(scalarMass);
+      solver->findNuggetSize();
+      solver->run();
+      R = model->nuggetSize();
+      data<<scalarMass<<"    "<<R<<"    "<<(solver->residual())<<"\n";
+      data.flush();
+    } catch (NoSolutionExistsException e) {
+      LOG::warn<<"Skipping scalar mass "
+               <<scalarMass
+               <<", no solution could be found"
+               <<std::endl;
+    }
   }
   data.close();
   delete solver;

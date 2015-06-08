@@ -316,7 +316,7 @@ $$
   }
 }@#
 bool isEffectiveMassZeroLike(real effectiveMass, real fermiMomentum) {
-     return ((effectiveMass<1e-7) && (10.0*effectiveMass < fermiMomentum));
+     return ((effectiveMass<1e-11) && (10.0*effectiveMass < fermiMomentum));
 }
 const real LN_4 = 1.3862943611198906188344642429164L;
 real YukawaDarkMatter::energyDensity(real mass, real r) {
@@ -369,7 +369,7 @@ real YukawaDarkMatter::source(real mass, real r) {
     iTerm = CUBE(mass)*Util::i(p/m);
   }
   real fermionContribution = (coupling()/PI_SQ)*iTerm;
-  return fermionContribution+partialScalarPotential(massToField(mass));
+  return fermionContribution + partialScalarPotential(massToField(mass));
 }
 
 @ {\bf Momentum Ansatz.}
@@ -513,7 +513,7 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   }
   void setNuggetSize(real R) {
     if (!(R>0.0)) {
-      throw std::logic_error("R must be positive");
+      throw NegativeDistanceException("R must be positive");
     }
     m_nuggetSize = R;
     m_fermiMomentumCoef=cbrt(9.0*PI_8*m_fermionNumber*(1.0+m_a)*(2.0+3.0*m_a)*(1.0+3.0*m_a))/R;
@@ -562,6 +562,7 @@ constexpr auto PI_8 = 0.39269908169872415480783042290994L;
 constexpr auto FOUR_PI = 12.566370614359172953850573533118L;
 constexpr auto SQRT_FOUR_PI = 3.5449077018110320545963349666823L;
 constexpr auto PI_SQ = 9.8696044010893586188344909998762L;
+constexpr auto ONE_SIXTH = 0.16666666666666666666666666666667L;
 typedef double real;
 typedef std::size_t index;
 real SQ(real x) { return x*x; }
@@ -591,6 +592,10 @@ public:
   using std::runtime_error::runtime_error;
 };
 
+class NegativeDistanceException : public std::logic_error {
+public:
+  using std::logic_error::logic_error;
+};
 @* Test Cases.
 We have three test cases prepared, which correspond to the $\alpha=0.1$
 and constant Fermi momentum scenario. The results correspond to the

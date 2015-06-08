@@ -5,6 +5,7 @@
 @s constexpr const
 @s NoSolutionExistsException char
 @s MassOutOfBoundsException char
+@s NegativeDistanceException int
 @s string char
 @s std int
 @s bool int
