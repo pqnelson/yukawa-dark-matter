@@ -61,11 +61,6 @@ We can get an approximation of order $\bigO{h^{4}}$ if we subtract out
 $f'''(x)$ instead of $f''(x)$, then use the equations of motion for
 $f''(x)$. As a first pass, we will not use this approach here.
 
-\rmk
-In practice, this doesn't work too well. It seems there's a problem I
-cannot quite identify, and I'm unwilling to waste time figuring it
-out. I'll put this on the back burner, maybe come back to it.
-
 @ {\bf Lemma.}
 {\it We have the approximation}
 $$
@@ -93,24 +88,25 @@ to swap this out for a different approximation.
 We can combine these lemmas to produce an approximation
 $$
 {{m(r+h)-m(r-h)}\over{2h}} = {(r-h)^{2}\over{r^{2}}}\left(
-{{m(r)-m(r-h)}\over{h}}
+{{-m(r+h)+4m(r)-3m(r-h)}\over{2h}}
 \right)
 + {c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 or equivalently
 $$
-{m(r+h)-m(r-h)} = 2{(r-h)^{2}\over{r^{2}}}\left(
-{m(r)-m(r-h)}
+{m(r+h)-m(r-h)} = {(r-h)^{2}\over{r^{2}}}\left(
+{-m(r+h)+4m(r)-3m(r-h)}
 \right)
 + 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
 $$
 Rearranging terms, we see
 $$
-m(r+h)
-= 2{(r-h)^{2}\over{r^{2}}}m(r)
-+\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
-+ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'.\eqn{}
+(1+u)m(r+h)
+= 4{(r-h)^{2}\over{r^{2}}}m(r)
++\left[1-3{(r-h)^{2}\over{r^{2}}}\right]m(r-h)
++ 2h{c_{0}\over{r^{2}}}\int^{r}_{r-h}(r')^{2}\sigma(r')\,{\rm d}r'\eqn{}
 $$
+where $u=(r-h)^{2}/r^2$.
 We are left with trying to approximate the integral expression before we
 can rest.
 
@@ -144,20 +140,19 @@ for some $\xi\in(r-h,r)$.
 We can combine the previous steps to conclude
 $$
 \eqalign{m(r+h)
-=& 2{(r-h)^{2}\over{r^{2}}}m(r)
-+\left[1-2{(r-h)^{2}\over{r^{2}}}\right]m(r-h)\cr
-&+ {c_{0}h^{2}\over{3\cdot r^{2}}}\left[(r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
+=& {4u\over{1+u}}m(r)
++\left[{{1-3u}\over{1+u}}\right]m(r-h)\cr
+&+ {c_{0}h^{2}\over{3\cdot r^{2}(1+u)}}\left[(r-h)^{2}\sigma(r-h) + (r + 0.5h)^2\sigma(r+0.5h) +
 r^{2}\sigma(r)\right].\cr}\eqn{}
 $$
 Or, writing $r_{n}=nh$, and $m_{n}=m(r_{n})$, we get
 $$
-\eqalign{
-m_{n+1}
-=& {{r_{n-1}^{2}}\over{r_{n}^{2}}}2 m_{n}
-+\left(1-2{{r_{n-1}^{2}}\over{r_{n}^{2}}}\right)m_{n-1}\cr
-&+ {c_{0}h^{2}\over{3\cdot r^{2}}}\left[r_{n-1}^{2}\sigma(r_{n-1})
+\eqalign{m_{n+1}
+=& {4u\over{1+u}}m_{n}
++\left[{{1-3u}\over{1+u}}\right]m_{n-1}\cr
+&+ {c_{0}h^{2}\over{3\cdot r_{n}^{2}(1+u)}}\left[r_{n-1}^{2}\sigma(r_{n-1})
 + \left({{r_{n} + r_{n-1}}\over 2}\right)^2\sigma\left({{r_{n} + r_{n-1}}\over 2}\right)
-+ r_{n}^{2}\sigma(r_{n})\right].}\eqn{}
++ r_{n}^{2}\sigma(r_{n})\right].\cr}\eqn{}
 $$
 
 @c void Solver::iterate(index j) {
@@ -169,8 +164,8 @@ $$
   real rPrimeSq = SQ(rPrime);
   real u = (rPrime/r);
   real c = (model->coupling())/rSq;
-
-  real massTerms = 2.0*u*m_mass[j-1] + (1.0 - 2.0*u)*m_mass[j-2];
+  real v = 1.0/(1.0+u);
+  real massTerms = 4.0*u*v*m_mass[j-1] + v*(1.0-3.0*u)*m_mass[j-2];
   // Simpson's rule for quadrature
   real k[3];
   k[0] = rPrimeSq*(model->source(m_mass[j-2], rPrime));
@@ -181,7 +176,7 @@ $$
 
   real integral = (h*ONE_SIXTH)*(k[0] + 4.0*k[1] + k[2]);
 
-  m_mass[j] = massTerms + c*h*integral;
+  m_mass[j] = massTerms + c*h*v*integral;
 }
 
 @ {\bf Solving the mass differential equation.}
