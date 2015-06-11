@@ -509,7 +509,7 @@ void Solver::findNuggetSize() {
       @<Handle no solution for given radius@>@;
     } catch (NegativeDistanceException e) {
       R = -10.0*R;
-      LOG::info<<"Guessed a negative distance, trying again with R = "
+      LOG::info<<"Solver::findNuggetSize() Guessed a negative distance, trying again with R = "
                <<R<<std::endl;
       if (silverBullets>0) {
         silverBullets--;
@@ -517,7 +517,7 @@ void Solver::findNuggetSize() {
       }
     }
   }
-  LOG::info<<"Setting R = "<<std::setprecision(20)<<R<<std::endl;
+  LOG::info<<"Solver::findNuggetSize() Setting R = "<<std::setprecision(20)<<R<<std::endl;
   model->setNuggetSize(R);
   LOG::trace<<"Solver::findNuggetSize() terminating..."<<std::endl;
 }
@@ -535,7 +535,7 @@ else.
       } else {
         R += 0.25;
       }
-      LOG::info<<"No such solution exists, guessing again with R = "
+      LOG::info<<"Solver::findNuggetSize() No such solution exists, guessing again with R = "
                <<R<<std::endl;
       j--;
 
@@ -551,7 +551,7 @@ approximation when $m_{\phi}=0$.
     h = 0.125*R;
   }
   real initialH = h;
-  LOG::trace<<"Initial guess for R: "
+  LOG::trace<<"Solver::findNuggetSize() Initial guess for R: "
             <<std::setprecision(20)
             <<R<<std::endl;
 
@@ -561,7 +561,7 @@ approximation when $m_{\phi}=0$.
       model->setNuggetSize(R+((k-1)*h));
       run();
       E[k] = computeEnergy();
-      LOG::info<<"E["<<k<<"] = "
+      LOG::info<<"Solver::findNuggetSize() E["<<k<<"] = "
                <<std::setprecision(20)
                <<E[k]<<std::endl;
     }
@@ -602,7 +602,7 @@ This is how we determine our next guess.
       }
     } else if (dE[0]>0.0 && dE[1]<0.0) {
       nextR = R;
-      LOG::error<<"Derivatives have incorrect signs..."<<std::endl;
+      LOG::error<<"Solver::findNuggetSize() Derivatives have incorrect signs..."<<std::endl;
     } else {
       h *= 0.5;
       nextR = R + h;
