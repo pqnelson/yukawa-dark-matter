@@ -263,6 +263,21 @@ would make the residual vanish. So instead of 30 or more iterations,
 it'd boil down to---say---5 or so.
 @^Shooting method@>
 
+If we were to graph what the residual $\rho$ is as a function of the
+initial value $m(0)$, then we have the following plot:
+
+\hfil\includegraphics{img/residual-0.mps}\hfil\break
+
+\noindent\ignorespaces%
+When the residual $\rho(m)$ crosses the axis, we have our solution. The
+slope of $\rho$ appears to be determined by $N$. But when $N\sim10^{7}$,
+we get the following situation:
+
+\hfil\includegraphics{img/residual-1.mps}\hfil\break
+
+\noindent\ignorespaces%
+Perhaps this happens when $R$ is ``too small''?
+
 If $m_{0}$ produces a residual $\rho_{0}$, and $m_{1}$ produces residual
 $\rho_{1}$, then we have the linear approximation
 $$
