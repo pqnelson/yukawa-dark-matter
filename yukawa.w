@@ -536,6 +536,117 @@ bool YukawaDarkMatter::isValidMass(real mass) {
   real scaleInvariantMass(real phi) const { return m_fermionMass + m_couplingConstant*phi; }
   real massToField(real mass) const { return (mass-m_fermionMass)/m_couplingConstant; }
 
+@* Approximate Solution For Massless Case When $p/m\ll1$.
+We can consider the case when $i(p_{F}(r)/\abs{m(r)})\approx
+(p_{F}(r)/\abs{m(r)})^{3}/3$. The equations of motion give us
+$$
+\nabla^{2}\phi(r)\approx\frac{g}{\pi^{2}}\frac{p_{F}(r)^{3}}{3}\eqn{}
+$$
+which has its solution be
+$$
+\phi(r)\approx-\frac{c_1}{r}
++c_2
++\frac{g_{\chi}N}{16 \pi}\sqrt{1-\frac{r}{R}}\frac{(5 r+4 R) (R-r)^3}{r R^4}.\eqn{}
+$$
+
+@ {\bf Imposing Boundary Conditions.}
+Observe when $4\pi c_{1}-g_{\chi}N=0$ (and hence $c_{1}=g_{\chi}N/4\pi$)
+we find $\phi'(0)=0$. Or more preciesely
+$$
+\lim_{r\to0}\phi'(r)=0,
+$$
+since $\phi'(0)$ is undefined unless we make this choice.
+
+The other boundary condition on the surface,
+$\phi'(R)=-\phi(R)/R$, we see
+$$
+\lim_{r\to R}\phi'(r) + \frac{\phi(r)}{r}=\frac{c_{2}}{R}.\eqn{}
+$$
+Therefore $c_{2}=0$. That is,
+$$
+\phi(r)\approx\frac{g_{\chi}N}{4\pi r}\left(-1+
++\frac{1}{4R^{4}}(5 r+4 R) (R-r)^3\sqrt{1-\frac{r}{R}}\right).\eqn{}
+$$
+Could we plug this into the energy functional, get a closed form
+expression, then minimize it with respect to $R$?
+
+
+@* Approximate Solution For Massless Case When $p/m\gg1$.
+For $i(p/m)\sim (p/m)^2/2$, what does the solution look like? It's far
+more complicated, involving Airy functions and does not seem to be
+elementary. But it exists!
+$$
+\eqalign{\phi(r)\approx\,&
+C_{1}\AiryAi\left[\root 9 \of{\frac{945^{2}N^{2}g^{6}}{2^{12}\pi^{4}}}
+\frac{(r - R)}{R}
+ \right]
++C_{2}\AiryBi\left[\root 9 \of{\frac{945g^{6}N^{2}}{(2^{10}\pi^{4})^{3}}}
+\frac{(r - R)}{R}\right]\cr
+&+m_{\chi}\frac{3}{8}\root 9 \of{\frac{33075\pi N^{4}g^{3}}{(2R^{6})^3}}
+\AiryAi\left[\root 9 \of{\frac{945^{2}N^{2}g^{6}}{2^{12}\pi^{4}}}
+\frac{(r - R)}{R}
+ \right]
+\int^{r}_{1}
+\AiryBi\left[\root 9 \of{\frac{945g^{6}N^{2}}{(2^{10}\pi^{4})^{3}}}
+\frac{(u - R)}{R}\right]
+u(u-R)\,{\rm d} u\cr
+&+m_{\chi}\frac{3}{8gr}\root 9 \of{\frac{33075\pi N^{4}g^{3}}{(2R^{6})^3}}
+\AiryBi\left[\root 9 \of{\frac{945g^{6}N^{2}}{(2^{10}\pi^{4})^{3}}}
+\frac{(r - R)}{R}\right]
+\int^{r}_{1} \AiryAi\left[\root 9 \of{\frac{945g^{6}N^{2}}{(2^{10}\pi^{4})^{3}}}
+\frac{(u - R)}{R}\right](R - u)u\,{\rm d} u\cr}
+$$
+Observe $r\leq R$, so the arguments to the Airy functions are negative
+real numbers. We may use various approximations for them, and continue
+analysing this ``exactly''.
+
+@ {\bf Approximating Airy Functions.} {\sl We have, for $z>0$ real,}
+$$
+\AiryBi(-z)\sim \frac{\cos \left(\frac{2}{3}z^{3/2}+\frac{\pi}{4} \right)}{\sqrt\pi\,z^{1/4}}\eqn{}
+$$
+{\sl and}
+$$
+\AiryAi(-z)\sim\frac{\sin \left(\frac23z^{3/2}+\frac{\pi}{4} \right)}{\sqrt\pi\,z^{1/4}}.\eqn{}
+$$
+
+\proof
+This follows immediately from considering the method of steepest
+descent. Recall
+$$
+\AiryAi(x) = \frac{1}{\pi}\int^{\infty}_{0}\cos(t^{3}/3 + xt){\rm d}t
+$$
+and
+$$
+\AiryBi(x) = \frac{1}{\pi}\int^{\infty}_{0}\left(\exp(-t^{3}/3 +
+xt)+\sin(t^{3}/3 + xt)\right){\rm d}t.
+$$
+Finding suitable contours, etc., are all trivial.\quad\slug
+
+@ {\bf Corollary.\enspace}\ignorespaces%
+{\sl Let}
+$$
+c_{0} = \frac{1}{R}\root 9 \of{\frac{945g^{6}N^{2}}{(2^{10}\pi^{4})^{3}}}\eqn{}
+$$
+{\sl then we have}
+$$
+\AiryAi[c_{0}(r-R)]
+\sim
+\frac{\sin \left(\frac{2}{3}{c_{0}}^{3/2}
+(R-r)^{3/2}
++\frac{\pi}{4}
+\right)}{\sqrt{\pi}\,
+{c_{0}}^{1/4}
+(R-r)^{1/4}}\eqn{}
+$$
+{\sl and}
+$$
+\AiryBi[c_{0}(r-R)]\sim\frac{\cos \left(\frac{2}{3}{c_{0}}^{3/2}(R-r)^{3/2}+\frac{\pi}{4} \right)}{\sqrt\pi\,{c_{0}}^{1/4}(R-r)^{1/4}}.\eqn{}
+$$
+
+\proof
+Immediate.\quad\slug
+
+
 @i algorithm.w
 
 @ @<Include Header Files@>=
